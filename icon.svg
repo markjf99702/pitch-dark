@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <radialGradient id="beam" cx="35" cy="29" r="24" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffe7b0"/>
+      <stop offset=".55" stop-color="#f6c878"/>
+      <stop offset=".8" stop-color="#b9813f" stop-opacity=".55"/>
+      <stop offset="1" stop-color="#6b4a25" stop-opacity="0"/>
+    </radialGradient>
+    <clipPath id="tile"><rect width="64" height="64" rx="14"/></clipPath>
+  </defs>
+  <g clip-path="url(#tile)">
+    <rect width="64" height="64" fill="#0b0b0d"/>
+    <circle cx="35" cy="29" r="24" fill="url(#beam)"/>
+    <g transform="rotate(-40 35 29)" fill="none" stroke="#3a2614" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="25" cy="29" r="6.5"/>
+      <path d="M31.5 29H47M42 29v5.5M46.5 29v4"/>
+    </g>
+  </g>
+</svg>

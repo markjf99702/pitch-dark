@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Pitch Dark</title>
+  <meta name="description" content="The power’s out. Search a dark house room by room with a flashlight, finding the things on your list before the battery runs down. Spare batteries are hidden in the clutter.">
+  <meta property="og:title" content="Pitch Dark">
+  <meta property="og:description" content="The power’s out. Find what’s on the list by flashlight before the battery dies.">
+  <meta property="og:image" content="https://junkdrawer.works/pitch-dark/og.png">
+  <meta property="og:url" content="https://junkdrawer.works/pitch-dark/">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="theme-color" content="#060607">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon-180.png">
+  <link rel="preload" href="fonts/bricolage-grotesque.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="fonts/caveat.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+  <canvas id="room" aria-label="A dark room. Move the flashlight over it to see what’s there." tabindex="0"></canvas>
+
+  <header class="hud" id="hud">
+    <div class="where">
+      <strong id="roomName">Pitch Dark</strong>
+      <span class="sub"><span id="roomNo"></span><span class="dot" aria-hidden="true"> · </span><span id="spares"></span></span>
+    </div>
+    <div class="hud-right">
+      <div class="battery" id="battery" role="meter" aria-label="Battery" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100">
+        <span class="cell"><span class="fill" id="batteryFill"></span></span>
+        <span class="pct" id="batteryPct">100%</span>
+      </div>
+      <button type="button" class="sound" id="soundBtn" aria-pressed="true" aria-label="Sound">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path class="spk" d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path class="waves" d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/><path class="mute" d="M15.5 9.5l5 5m0-5l-5 5"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <footer class="list" id="list" aria-live="polite">
+    <div class="list-head"><span>Find</span><span id="more"></span></div>
+    <ol class="wants" id="wants"></ol>
+  </footer>
+
+  <p class="hint" id="hint" hidden></p>
+
+  <section class="sheet" id="sheet" aria-live="polite">
+    <p class="kicker" id="sheetKicker"></p>
+    <h1 class="title" id="sheetTitle">Pitch Dark</h1>
+    <p class="body" id="sheetBody">The power’s out. Find the things on the list by flashlight before the battery runs down. Spare batteries are hidden in the clutter.</p>
+    <button type="button" class="go" id="sheetBtn">Switch on the flashlight</button>
+    <p class="small" id="sheetSmall"></p>
+  </section>
+
+  <noscript><p class="noscript">Pitch Dark needs JavaScript to switch on the flashlight.</p></noscript>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
