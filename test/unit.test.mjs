@@ -3,7 +3,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { ROOMS, DIFFICULTY, LOOKALIKES, lookalikeOf } from '../js/rooms.js';
 import { buildScene, centerOf } from '../js/scene.js';
-import { Game, DRAIN, BATTERY_BOOST, LIST_SHOWN, DWELL } from '../js/game.js';
+import { Game, MODES, LIST_SHOWN } from '../js/game.js';
+
+const { drain: DRAIN, boost: BATTERY_BOOST, dwell: DWELL } = MODES.medium;
 import { rng } from '../js/rng.js';
 
 const SIZES = [{ w: 390, h: 640 }, { w: 1280, h: 620 }, { w: 820, h: 1000 }, { w: 320, h: 460 }];
@@ -155,4 +157,46 @@ test('the offline copy includes every file the game needs', async () => {
     'index.html', 'icon.svg', 'manifest.webmanifest',
   ];
   for (const f of needed) assert.ok(listed.has(f), `sw.js doesn't keep ${f}`);
+});
+
+test('easy, medium and hard change the battery, the beam and the spares', () => {
+  const { easy, medium, hard } = MODES;
+  assert.ok(easy.drain < medium.drain && medium.drain < hard.drain, 'the battery lasts longest on easy');
+  assert.ok(easy.boost > medium.boost && medium.boost > hard.boost, 'spares give most on easy');
+  assert.ok(easy.beam > medium.beam && medium.beam > hard.beam, 'the beam is widest on easy');
+  assert.ok(easy.dwell < medium.dwell && medium.dwell < hard.dwell, 'picking up is quickest on easy');
+  // What the title screen says about each one is what it does.
+  for (const m of Object.values(MODES)) assert.ok(m.note.includes(`${Math.round(1 / m.drain)} seconds of light`) || m.note.startsWith(`${Math.round(1 / m.drain)} seconds`), m.name);
+  assert.match(easy.note, /Spares add half a battery/);
+  assert.match(medium.note, new RegExp(`spares add ${Math.round(medium.boost * 100)}%`));
+  assert.match(hard.note, new RegExp(`Spares add ${Math.round(hard.boost * 100)}%`));
+
+  const played = (mode) => {
+    const g = new Game(8, mode);
+    g.startRoom(1, SIZES[0]);
+    g.tick(10, true, { x: -999, y: -999, r: 10 });
+    const used = 1 - g.charge;
+    g.charge = 0.2;
+    g.collect(g.scene.batteries[0]);
+    return { used, boosted: g.charge - 0.2, spares: g.scene.batteries.length };
+  };
+  const e = played('easy');
+  const m = played('medium');
+  const h = played('hard');
+  assert.ok(e.used < m.used && m.used < h.used);
+  assert.ok(Math.abs(m.used - 10 * medium.drain) < 1e-9);
+  assert.ok(e.boosted > m.boosted && m.boosted > h.boosted);
+  assert.equal(e.spares, DIFFICULTY[1].batteries + 1, 'easy hides one more spare');
+  assert.equal(m.spares, DIFFICULTY[1].batteries);
+  assert.equal(h.spares, DIFFICULTY[1].batteries);
+  assert.equal(new Game(1, 'nonsense').modeName, 'medium');
+  assert.equal(new Game(1, 'constructor').modeName, 'medium');
+});
+
+test('picking up takes longer on hard', () => {
+  const g = new Game(5, 'hard');
+  g.startRoom(1, SIZES[0]);
+  const id = g.shown()[0];
+  assert.equal(g.tick(MODES.medium.dwell + 0.05, true, aimAt(g, id)), null);
+  assert.equal(g.tick(MODES.hard.dwell - MODES.medium.dwell, true, aimAt(g, id)).type, 'found');
 });

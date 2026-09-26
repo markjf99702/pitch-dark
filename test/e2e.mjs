@@ -142,6 +142,48 @@ await page.waitForFunction(() => document.querySelector('#sheetTitle').textConte
 assert.match(await text('#sheetBody'), /^You found all 6 things with \d+% battery left\.$/);
 assert.equal(await pd(() => JSON.parse(localStorage.getItem('pitch-dark:best')).wins), 1);
 
+// Difficulty: picked on the title screen, remembered, and each has its own best.
+{
+  await page.goto(base + '?seed=15');
+  await page.evaluate(() => document.fonts.ready);
+  const checked = () => page.locator('#modes [aria-checked="true"]').innerText();
+  assert.ok(await page.locator('#modes').isVisible(), 'the title screen offers a difficulty');
+  assert.equal(await checked(), 'Medium');
+  await page.click('#modes [data-mode="hard"]');
+  assert.equal(await checked(), 'Hard');
+  assert.match(await text('#modeNote'), /^A narrower beam and 60 seconds of light per battery\./);
+  await page.focus('#modes [data-mode="hard"]');
+  await page.keyboard.press('ArrowLeft');
+  assert.equal(await checked(), 'Medium', 'arrow keys move along the picker');
+  assert.equal(await pd(() => window.__pitchDark.mode), 'title', 'choosing with the keyboard does not start the game');
+  await page.keyboard.press('ArrowRight');
+  await page.reload();
+  await page.evaluate(() => document.fonts.ready);
+  assert.equal(await checked(), 'Hard', 'the choice is remembered');
+  await page.click('#sheetBtn');
+  assert.equal(await game(g => g.modeName), 'hard');
+  assert.ok(await pd(() => document.getElementById('sheet').inert), 'the title card and its picker go once the game starts');
+  const hardBeam = await game(g => g.mode.beam);
+  assert.ok(hardBeam < 1);
+  await pickUp((await game(g => g.shown()))[0]);
+  await game(g => { g.charge = 0.004; });
+  await page.mouse.move(100, 300, { steps: 3 });
+  await page.waitForFunction(() => !document.querySelector('#sheet').classList.contains('hidden') && window.__pitchDark.mode === 'dead', null, { timeout: 6000 });
+  assert.equal(await text('#sheetSmall'), 'That’s your best yet on hard.');
+  assert.equal(await pd(() => JSON.parse(localStorage.getItem('pitch-dark:best:hard')).found), 1);
+  assert.equal(await pd(() => JSON.parse(localStorage.getItem('pitch-dark:best')).found), 6, 'medium keeps its own best (6 from the attic win)');
+  await page.click('#sheetAlt');
+  assert.equal(await pd(() => window.__pitchDark.mode), 'title');
+  assert.ok(await page.locator('#modes').isVisible());
+  assert.equal(await text('#sheetSmall'), 'Best on hard: 1 thing');
+  await page.click('#modes [data-mode="easy"]');
+  assert.equal(await text('#sheetSmall'), '', 'no best yet on easy');
+  await page.click('#sheetBtn');
+  assert.equal(await game(g => g.modeName), 'easy');
+  assert.equal(await text('#spares'), '3 spare batteries', 'easy hides one more spare');
+  await page.evaluate(() => localStorage.setItem('pitch-dark:mode', 'medium'));
+}
+
 // Fits a phone: nothing scrolls sideways.
 assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, 'the page scrolls sideways on a phone');
 

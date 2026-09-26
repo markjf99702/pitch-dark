@@ -4,15 +4,29 @@ import { ROOMS, DIFFICULTY } from './rooms.js';
 import { buildScene, centerOf } from './scene.js';
 import { rng } from './rng.js';
 
-export const DRAIN = 1 / 85; // share of a full battery used per second with the light on
-export const BATTERY_BOOST = 0.4; // what a spare battery adds
 export const LIST_SHOWN = 3; // how many list things you can see at once
-export const DWELL = 0.55; // seconds the light has to rest on a thing to pick it up
 export const LOW = 0.2; // when the beam starts to fail
 
+// How forgiving the flashlight is.
+//   drain  share of a full battery used per second with the light on
+//   boost  what a spare battery adds
+//   beam   how wide the beam is (1 = normal)
+//   dwell  seconds the light has to rest on a thing to pick it up
+//   spares extra spare batteries hidden in every room
+export const MODES = {
+  easy: { name: 'Easy', drain: 1 / 130, boost: 0.5, beam: 1.22, dwell: 0.45, spares: 1,
+    note: 'A wider beam and 130 seconds of light per battery. Spares add half a battery, and every room hides one more.' },
+  medium: { name: 'Medium', drain: 1 / 85, boost: 0.4, beam: 1, dwell: 0.55, spares: 0,
+    note: '85 seconds of light per battery, and spares add 40%.' },
+  hard: { name: 'Hard', drain: 1 / 60, boost: 0.3, beam: 0.8, dwell: 0.7, spares: 0,
+    note: 'A narrower beam and 60 seconds of light per battery. Spares add 30%, and picking things up takes longer.' },
+};
+
 export class Game {
-  constructor(seed) {
+  constructor(seed, mode = 'medium') {
     this.seed = seed >>> 0;
+    this.modeName = Object.hasOwn(MODES, mode) ? mode : 'medium';
+    this.mode = MODES[this.modeName];
     this.roomIndex = 0;
     this.charge = 1;
     this.foundTotal = 0;
@@ -35,7 +49,8 @@ export class Game {
     this.roomIndex = index;
     if (this.firstRoom == null) this.firstRoom = index;
     const rand = rng((this.seed ^ Math.imul(index + 1, 0x9e3779b1)) >>> 0);
-    this.scene = buildScene(ROOMS[index], DIFFICULTY[index], region, rand);
+    const diff = { ...DIFFICULTY[index], batteries: DIFFICULTY[index].batteries + this.mode.spares };
+    this.scene = buildScene(ROOMS[index], diff, region, rand);
     this.found = new Set();
     this.aim = null;
     this.state = 'playing';
@@ -64,7 +79,7 @@ export class Game {
   tick(dt, lit, beam) {
     if (this.state !== 'playing') return null;
     if (!lit) { this.decayAim(dt); return null; }
-    this.charge = Math.max(0, this.charge - dt * DRAIN);
+    this.charge = Math.max(0, this.charge - dt * this.mode.drain);
     if (this.charge <= 0) {
       this.state = 'dying';
       this.aim = null;
@@ -74,7 +89,7 @@ export class Game {
     if (id == null) { this.decayAim(dt); return null; }
     if (!this.aim || this.aim.id !== id) this.aim = { id, t: 0 };
     this.aim.t += dt;
-    if (this.aim.t >= DWELL) return this.collect(id);
+    if (this.aim.t >= this.mode.dwell) return this.collect(id);
     return null;
   }
 
@@ -105,7 +120,7 @@ export class Game {
     this.aim = null;
     const item = this.scene.items[id];
     if (item.kind === 'battery') {
-      this.charge = Math.min(1, this.charge + BATTERY_BOOST);
+      this.charge = Math.min(1, this.charge + this.mode.boost);
       return { type: 'battery', id };
     }
     this.foundTotal++;

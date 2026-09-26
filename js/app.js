@@ -1,6 +1,6 @@
 // Pitch Dark: the page. Input, the frame loop, the list and the messages between rooms.
 
-import { Game, LOW, DWELL } from './game.js';
+import { Game, LOW, MODES } from './game.js';
 import { ROOMS } from './rooms.js';
 import { centerOf } from './scene.js';
 import { drawRoom, beam as drawBeam, beamAt } from './draw.js';
@@ -25,6 +25,8 @@ const batteryEl = $('battery');
 const params = new URLSearchParams(location.search);
 const fixedSeed = params.has('seed') ? Number(params.get('seed')) >>> 0 : null;
 const startRoom = Math.min(ROOMS.length - 1, Math.max(0, Number(params.get('room')) || 0));
+let chosen = Object.hasOwn(MODES, params.get('mode') ?? '') ? params.get('mode') : readMode(); // the difficulty picked on the title screen
+let titleBeam = MODES[chosen].beam; // the title screen's beam grows and shrinks to match
 const coarse = matchMedia('(pointer: coarse)').matches;
 const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -46,24 +48,29 @@ let keyLit = 0;
 const roomLight = { level: 0, color: [255, 244, 225] };
 const motes = Array.from({ length: 46 }, () => ({ x: Math.random(), y: Math.random(), vx: (Math.random() - 0.5) * 0.004, vy: (Math.random() - 0.3) * 0.004, r: 0.5 + Math.random() * 1.2, p: Math.random() * 6 }));
 
-// --- Best so far ---
+// --- Difficulty and best so far, one best for each difficulty ---
 
-function readBest() {
-  try { return { found: 0, wins: 0, ...JSON.parse(localStorage.getItem('pitch-dark:best') || '{}') }; } catch { return { found: 0, wins: 0 }; }
+function readMode() {
+  try { const m = localStorage.getItem('pitch-dark:mode'); return Object.hasOwn(MODES, m ?? '') ? m : 'medium'; } catch { return 'medium'; }
 }
-function saveBest(found, won) {
-  const best = readBest();
+// Medium keeps the key from before there were difficulties, so earlier bests carry over.
+const bestKey = (m) => (m === 'medium' ? 'pitch-dark:best' : `pitch-dark:best:${m}`);
+function readBest(m) {
+  try { return { found: 0, wins: 0, ...JSON.parse(localStorage.getItem(bestKey(m)) || '{}') }; } catch { return { found: 0, wins: 0 }; }
+}
+function saveBest(m, found, won) {
+  const best = readBest(m);
   const beat = found > best.found;
   best.found = Math.max(best.found, found);
   if (won) best.wins++;
-  try { localStorage.setItem('pitch-dark:best', JSON.stringify(best)); } catch { /* storage blocked */ }
+  try { localStorage.setItem(bestKey(m), JSON.stringify(best)); } catch { /* storage blocked */ }
   return { best, beat };
 }
-function bestLine(best) {
+function bestLine(best, m) {
   if (!best.found) return '';
   const things = `${best.found} ${best.found === 1 ? 'thing' : 'things'}`;
   const wins = best.wins ? ` · Made it through the house ${best.wins === 1 ? 'once' : best.wins === 2 ? 'twice' : `${best.wins} times`}` : '';
-  return `Best: ${things}${wins}`;
+  return `Best on ${MODES[m].name.toLowerCase()}: ${things}${wins}`;
 }
 
 // --- Layout ---
@@ -98,7 +105,8 @@ const toScreen = (p) => ({ x: view.ox + p.x * view.s, y: view.oy + p.y * view.s 
 const toScene = (p) => ({ x: (p.x - view.ox) / view.s, y: (p.y - view.oy) / view.s });
 const beamRadius = () => {
   const fade = game && mode !== 'title' ? Math.min(1, game.charge / LOW) : 1;
-  return game.scene.beam * view.s * (0.72 + 0.28 * fade);
+  const size = mode === 'title' ? titleBeam : game.mode.beam;
+  return game.scene.beam * view.s * size * (0.72 + 0.28 * fade);
 };
 
 function newRoom(index) {
@@ -211,20 +219,62 @@ function fly(item, to) {
 
 // --- Messages ---
 
-function showSheet({ kicker = '', title, body, button, small = '', onGo, titleScreen = false }) {
+function showSheet({ kicker = '', title, body, button, small = '', onGo, alt = null, titleScreen = false }) {
   $('sheetKicker').textContent = kicker;
   $('sheetTitle').textContent = title;
   $('sheetBody').textContent = body;
   $('sheetBtn').textContent = button;
   $('sheetSmall').textContent = small;
+  $('modes').hidden = !titleScreen;
+  $('modeNote').hidden = !titleScreen;
+  $('sheetAlt').hidden = !alt;
+  if (alt) $('sheetAlt').textContent = alt.label;
   sheet.classList.toggle('title-screen', titleScreen);
   sheet.classList.remove('hidden');
+  sheet.inert = false;
   list.classList.add('off');
   sheetGo = onGo;
+  sheetAlt = alt && alt.onGo;
 }
 let sheetGo = null;
-function hideSheet() { sheet.classList.add('hidden'); sheetGo = null; }
+let sheetAlt = null;
+function hideSheet() {
+  sheet.classList.add('hidden');
+  sheet.inert = true; // faded out, so no tabbing to its buttons
+  sheetGo = null;
+  sheetAlt = null;
+}
 $('sheetBtn').addEventListener('click', () => { sound.wake(); if (sheetGo) sheetGo(); });
+$('sheetAlt').addEventListener('click', () => { sound.wake(); if (sheetAlt) sheetAlt(); });
+
+// The difficulty picker on the title screen.
+const modeButtons = [...$('modes').querySelectorAll('[data-mode]')];
+function renderModes() {
+  for (const b of modeButtons) {
+    const on = b.dataset.mode === chosen;
+    b.setAttribute('aria-checked', String(on));
+    b.tabIndex = on ? 0 : -1;
+  }
+  $('modeNote').textContent = MODES[chosen].note;
+  if (mode === 'title') $('sheetSmall').textContent = bestLine(readBest(chosen), chosen);
+}
+function choose(m) {
+  chosen = m;
+  try { localStorage.setItem('pitch-dark:mode', m); } catch { /* storage blocked */ }
+  renderModes();
+}
+$('modes').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-mode]');
+  if (b) choose(b.dataset.mode);
+});
+$('modes').addEventListener('keydown', (e) => {
+  const step = { ArrowLeft: -1, ArrowUp: -1, ArrowRight: 1, ArrowDown: 1 }[e.key];
+  if (!step) return;
+  e.preventDefault();
+  const i = (modeButtons.findIndex((b) => b.dataset.mode === chosen) + step + modeButtons.length) % modeButtons.length;
+  choose(modeButtons[i].dataset.mode);
+  modeButtons[i].focus();
+});
 
 function setMode(m) { mode = m; modeAt = now; }
 
@@ -242,14 +292,15 @@ function showTitle() {
     title: 'Pitch Dark',
     body: 'The power’s out. Find the things on the list by flashlight before the battery runs down. Spare batteries are hidden in the clutter.',
     button: 'Switch on the flashlight',
-    small: bestLine(readBest()),
+    small: bestLine(readBest(chosen), chosen),
     onGo: begin,
     titleScreen: true,
   });
+  renderModes();
 }
 
 function begin() {
-  game = new Game(fixedSeed ?? randomSeed());
+  game = new Game(fixedSeed ?? randomSeed(), chosen);
   hud.style.opacity = '1';
   hideSheet();
   newRoom(startRoom);
@@ -351,7 +402,7 @@ canvas.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse') 
 canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
 addEventListener('keydown', (e) => {
-  if ((e.key === 'Enter' || e.key === ' ') && sheetGo && document.activeElement !== $('sheetBtn')) {
+  if ((e.key === 'Enter' || e.key === ' ') && sheetGo && document.activeElement?.tagName !== 'BUTTON') {
     e.preventDefault();
     sound.wake();
     sheetGo();
@@ -408,6 +459,7 @@ function frame(ms) {
   // Where the light is pointing.
   let lit = false;
   if (mode === 'title') {
+    titleBeam += (MODES[chosen].beam - titleBeam) * (1 - Math.exp(-dt * 6));
     const { W } = view;
     pointer.x = W / 2 + W * 0.34 * Math.sin(t * 0.33);
     pointer.y = region.y + region.h * (0.5 + 0.36 * Math.sin(t * 0.51 + 1.3));
@@ -455,7 +507,7 @@ function frame(ms) {
     if (since > 1.6) {
       game.die();
       setMode('dead');
-      const { best, beat } = saveBest(game.foundTotal, false);
+      const { best, beat } = saveBest(game.modeName, game.foundTotal, false);
       setTimeout(() => {
         if (mode !== 'dead') return;
         showSheet({
@@ -463,8 +515,9 @@ function frame(ms) {
           title: `Stuck in ${lower(game.room.name)}`,
           body: `You found ${game.foundTotal} ${game.foundTotal === 1 ? 'thing' : 'things'} in ${roomsWord(game.roomsVisited)}. Still on this room’s list, circled: ${game.missed().map((id) => game.scene.items[id].e).join(' ')}`,
           button: 'Try again',
-          small: beat && best.found > 0 ? 'That’s your best yet.' : bestLine(best),
+          small: beat && best.found > 0 ? `That’s your best yet on ${game.mode.name.toLowerCase()}.` : bestLine(best, game.modeName),
           onGo: begin,
+          alt: { label: 'Change difficulty', onGo: showTitle },
         });
       }, 1600);
     }
@@ -492,14 +545,15 @@ function frame(ms) {
     roomLight.level = track(POWER_BACK, since);
     if (since > 0.5 && since - dt <= 0.5) sound.lightsOn();
     if (since > 1.4 && !sheetGo) {
-      const { best } = saveBest(game.foundTotal, true);
+      const { best } = saveBest(game.modeName, game.foundTotal, true);
       showSheet({
         kicker: `Room ${game.roomCount} of ${game.roomCount}`,
         title: 'The power’s back',
         body: `You found all ${game.foundTotal} things with ${Math.round(game.charge * 100)}% battery left.`,
         button: 'Play again',
-        small: bestLine(best),
+        small: bestLine(best, game.modeName),
         onGo: begin,
+        alt: { label: 'Change difficulty', onGo: showTitle },
       });
     }
   } else if (mode === 'dead') {
@@ -568,7 +622,7 @@ function render(lit, r, power, warm, since, dt) {
     const it = game.scene.items[game.aim.id];
     const c = toScreen(centerOf(it));
     const rr = it.size * view.s * 0.64;
-    const p = Math.min(1, game.aim.t / DWELL);
+    const p = Math.min(1, game.aim.t / game.mode.dwell);
     ctx.lineWidth = 3;
     ctx.strokeStyle = 'rgba(255,219,143,0.25)';
     ctx.beginPath();

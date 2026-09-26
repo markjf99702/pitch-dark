@@ -48,7 +48,14 @@
     <p class="kicker" id="sheetKicker"></p>
     <h1 class="title" id="sheetTitle">Pitch Dark</h1>
     <p class="body" id="sheetBody">The power’s out. Find the things on the list by flashlight before the battery runs down. Spare batteries are hidden in the clutter.</p>
+    <div class="modes" id="modes" role="radiogroup" aria-label="Difficulty" hidden>
+      <button type="button" role="radio" data-mode="easy" aria-checked="false">Easy</button>
+      <button type="button" role="radio" data-mode="medium" aria-checked="true">Medium</button>
+      <button type="button" role="radio" data-mode="hard" aria-checked="false">Hard</button>
+    </div>
+    <p class="mode-note" id="modeNote" hidden></p>
     <button type="button" class="go" id="sheetBtn">Switch on the flashlight</button>
+    <button type="button" class="alt" id="sheetAlt" hidden></button>
     <p class="small" id="sheetSmall"></p>
   </section>
 
