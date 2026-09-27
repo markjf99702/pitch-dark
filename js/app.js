@@ -245,6 +245,8 @@ function hideSheet() {
   sheetAlt = null;
 }
 $('sheetBtn').addEventListener('click', () => { sound.wake(); if (sheetGo) sheetGo(); });
+// Enter on a footer link should follow the link, not switch on the flashlight.
+document.querySelector('.jd-foot').addEventListener('keydown', (e) => e.stopPropagation());
 $('sheetAlt').addEventListener('click', () => { sound.wake(); if (sheetAlt) sheetAlt(); });
 
 // The difficulty picker on the title screen.
