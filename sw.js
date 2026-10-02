@@ -2,9 +2,9 @@
 // Anything the person saves lives in localStorage, not here.
 // Network first, so a new version shows up as soon as you're online.
 
-const CACHE = 'pitch-dark-v1'; // bump the number when the file list changes
+const CACHE = 'pitch-dark-v2'; // bump the number when the file list changes
 const SHELL = [
-  './', 'index.html', 'icon.svg', 'manifest.webmanifest',
+  './', 'index.html', 'carry.js', 'icon.svg', 'manifest.webmanifest',
   'css/app.css', 'js/app.js', 'js/game.js', 'js/scene.js', 'js/rooms.js', 'js/draw.js', 'js/sound.js', 'js/rng.js',
   'fonts/bricolage-grotesque.woff2', 'fonts/caveat.woff2', 'icon-180.png', 'icon-192.png', 'icon-512.png',
 ];

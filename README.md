@@ -1,6 +1,6 @@
 # Pitch Dark
 
-**Play it: [junkdrawer.works/pitch-dark](https://junkdrawer.works/pitch-dark/)**
+**Play it: [pitch-dark.junkdrawer.works](https://pitch-dark.junkdrawer.works/)**
 
 **The power’s out, and you have a flashlight and a list.** Search the house one dark room at a time: a wall of cluttered shelves that you only see in the beam. Hold the light on a thing from the list to pick it up, and find them all before the battery runs down.
 
