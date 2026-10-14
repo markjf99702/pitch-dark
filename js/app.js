@@ -21,6 +21,7 @@ const wants = $('wants');
 const sheet = $('sheet');
 const hint = $('hint');
 const batteryEl = $('battery');
+const safeArea = $('safeArea');
 
 const params = new URLSearchParams(location.search);
 const fixedSeed = params.has('seed') ? Number(params.get('seed')) >>> 0 : null;
@@ -80,7 +81,8 @@ function measure() {
   const H = innerHeight;
   const top = hud.getBoundingClientRect().bottom - 4;
   const bottom = list.querySelector('.list-head').getBoundingClientRect().top - 2;
-  region = { x: 0, y: top, w: W, h: Math.max(200, bottom - top) };
+  const sides = safeArea.getBoundingClientRect(); // clear of a notch at the sides, like the top bar and the list
+  region = { x: sides.left, y: top, w: sides.width, h: Math.max(200, bottom - top) };
   return { W, H };
 }
 

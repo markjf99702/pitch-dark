@@ -310,6 +310,24 @@ assert.deepEqual(await game(g => g.shown()), listBefore);
 await pickUp(listBefore[0]);
 await page.setViewportSize({ width: 390, height: 844 });
 
+// On a phone on its side, the shelves keep clear of the notch, like the top bar and the list.
+{
+  const sideways = await browser.newContext({ viewport: { width: 844, height: 390 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+  const side = await sideways.newPage();
+  const cdp = await sideways.newCDPSession(side);
+  const notch = await cdp.send('Emulation.setSafeAreaInsetsOverride', { insets: { top: 0, left: 47, bottom: 21, right: 47 } }).then(() => true, () => false);
+  if (notch) {
+    await side.goto(base + '?seed=4&room=3');
+    await side.click('#sheetBtn');
+    const edges = await side.evaluate(() => {
+      const g = window.__pitchDark.game, v = window.__pitchDark.view;
+      return { left: Math.min(...g.scene.items.map(i => v.ox + (i.x - i.size / 2) * v.s)), right: Math.max(...g.scene.items.map(i => v.ox + (i.x + i.size / 2) * v.s)), width: innerWidth };
+    });
+    assert.ok(edges.left >= 47 && edges.right <= edges.width - 47, `things on the shelves run under the notch: ${JSON.stringify(edges)}`);
+  } else console.log('(skipped the notch check: this Chromium cannot fake safe-area insets)');
+  await sideways.close();
+}
+
 // On a touchscreen the light shines a little above your finger, so the finger doesn't hide what it lights.
 {
   await page.goto(base + '?seed=14');
