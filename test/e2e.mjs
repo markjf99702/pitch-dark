@@ -156,6 +156,9 @@ assert.equal(await page.locator('#wants .want:not(.empty)').count(), 3);
 
 // Let the battery run out: it flickers and dies, and the moonlight shows where the list things were.
 await pickUp((await game(g => g.shown()))[0]);
+// Light off for longer than the flicker lasts, so the room has been going too long for a skipped flicker to pass.
+await page.dispatchEvent('#room', 'pointerleave', { pointerType: 'mouse' });
+await page.waitForTimeout(1700);
 await recordFrames();
 await game(g => { g.charge = 0.004; });
 const at = await pd(() => ({ x: innerWidth / 2, y: innerHeight / 2 }));
