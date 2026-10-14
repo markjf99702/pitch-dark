@@ -19,7 +19,11 @@ test('every room has enough to fill its shelves and its list', () => {
     assert.ok(!emoji.includes('🔋'), `${room.id} has a battery among its things`);
     for (const [e, name] of room.things) assert.ok(e && name && name.length <= 20, `${room.id}: ${e} ${name}`);
   }
-  for (const pair of LOOKALIKES) assert.equal(pair.length, 2);
+  const onShelves = new Set(ROOMS.flatMap((room) => room.things.map((t) => t[0])));
+  for (const pair of LOOKALIKES) {
+    assert.equal(pair.length, 2);
+    for (const e of pair) assert.ok(onShelves.has(e), `look-alike ${e} isn't spelled as it is on the shelves`);
+  }
 });
 
 test('rooms lay out with a fair list, wherever and however often they are built', () => {
