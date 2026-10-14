@@ -456,7 +456,7 @@ function frame(ms) {
   const dt = Math.min(0.05, last ? t - last : 0.016);
   last = t;
   now = t;
-  const since = now - modeAt;
+  let since = now - modeAt;
 
   // Where the light is pointing.
   let lit = false;
@@ -488,6 +488,7 @@ function frame(ms) {
     if (lit) { if (!hint.hidden) hint.classList.add('gone'); } else if (!hint.hidden && !hinted) hint.classList.remove('gone');
     const b = toScene(beamPos);
     onEvent(game.tick(dt, lit, { x: b.x, y: b.y, r: r / view.s }));
+    since = now - modeAt; // clearing the room or a flat battery starts a new mode, so its clock starts now
   }
 
   // How bright the flashlight is.
@@ -509,6 +510,7 @@ function frame(ms) {
     if (since > 1.6) {
       game.die();
       setMode('dead');
+      since = 0;
       const { best, beat } = saveBest(game.modeName, game.foundTotal, false);
       setTimeout(() => {
         if (mode !== 'dead') return;

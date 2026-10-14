@@ -42,6 +42,25 @@ async function pickUp(id) {
   await page.waitForFunction(i => window.__pitchDark.game.found.has(i), id, { timeout: 4000 });
 }
 
+// Records the mode, the room's light and whether a card is up, every frame, until the next recording starts.
+const recordFrames = () => pd(() => {
+  const frames = window.__frames = [];
+  const t0 = performance.now();
+  const rec = () => {
+    if (window.__frames !== frames) return;
+    frames.push({ t: (performance.now() - t0) / 1000, mode: window.__pitchDark.mode, light: window.__pitchDark.roomLight.level, card: !document.getElementById('sheet').classList.contains('hidden') });
+    if (frames.length < 3000) requestAnimationFrame(rec);
+  };
+  requestAnimationFrame(rec);
+});
+// How long the game stayed in a mode (seconds), the brightest the room got meanwhile, and how long until a card came up.
+const timeIn = m => pd(m => {
+  const f = window.__frames.filter(x => x.mode === m);
+  if (!f.length) return { secs: 0, light: 0, untilCard: null };
+  const card = f.find(x => x.card);
+  return { secs: f[f.length - 1].t - f[0].t, light: Math.max(...f.map(x => x.light)), untilCard: card ? card.t - f[0].t : null };
+}, m);
+
 await page.goto(base + '?seed=11');
 await page.evaluate(() => document.fonts.ready);
 
@@ -91,8 +110,12 @@ assert.equal(await text('#spares'), '1 spare battery');
 await page.waitForFunction(() => document.querySelector('#batteryPct').textContent !== '30%');
 
 // Find the rest: lightning shows the room, then on to the next one.
-while ((await game(g => g.shown())).length) await pickUp((await game(g => g.shown()))[0]);
+while ((await game(g => g.shown())).length > 1) await pickUp((await game(g => g.shown()))[0]);
+await recordFrames();
+await pickUp((await game(g => g.shown()))[0]);
 await page.waitForFunction(() => window.__pitchDark.mode === 'cleared', null, { timeout: 4000 });
+const lightning = await timeIn('reveal');
+assert.ok(lightning.secs > 1 && lightning.light > 0.9, `the lightning flashes before the card comes up: ${JSON.stringify(lightning)}`);
 assert.equal(await text('#sheetTitle'), 'Got everything in the hall closet');
 assert.match(await text('#sheetBody'), /% battery left\. Next is the pantry\./);
 await page.click('#sheetBtn');
@@ -104,11 +127,13 @@ assert.equal(await page.locator('#wants .want:not(.empty)').count(), 3);
 
 // Let the battery run out: it flickers and dies, and the moonlight shows where the list things were.
 await pickUp((await game(g => g.shown()))[0]);
+await recordFrames();
 await game(g => { g.charge = 0.004; });
 const at = await pd(() => ({ x: innerWidth / 2, y: innerHeight / 2 }));
 await page.mouse.move(at.x, at.y);
 await page.mouse.move(at.x + 20, at.y + 10, { steps: 3 });
 await page.waitForFunction(() => window.__pitchDark.mode === 'dead', null, { timeout: 5000 });
+assert.ok((await timeIn('dying')).secs > 1.2, 'the flashlight flickers out before it dies');
 await page.waitForFunction(() => !document.querySelector('#sheet').classList.contains('hidden'), null, { timeout: 5000 });
 assert.equal(await text('#sheetKicker'), 'THE FLASHLIGHT DIED');
 assert.equal(await text('#sheetTitle'), 'Stuck in the pantry');
@@ -137,8 +162,11 @@ assert.ok(v.oy + highest * v.s >= hudBox.y + hudBox.height - 12, 'things on the 
 await page.goto(base + '?seed=12&room=6');
 await page.click('#sheetBtn');
 assert.equal(await text('#roomName'), 'The attic');
-while ((await game(g => g.shown())).length) await pickUp((await game(g => g.shown()))[0]);
+while ((await game(g => g.shown())).length > 1) await pickUp((await game(g => g.shown()))[0]);
+await recordFrames();
+await pickUp((await game(g => g.shown()))[0]);
 await page.waitForFunction(() => document.querySelector('#sheetTitle').textContent === 'The power’s back', null, { timeout: 5000 });
+assert.ok((await timeIn('won')).untilCard > 1, 'the lights come back on before the card comes up');
 assert.match(await text('#sheetBody'), /^You found all 6 things with \d+% battery left\.$/);
 assert.equal(await pd(() => JSON.parse(localStorage.getItem('pitch-dark:best')).wins), 1);
 
