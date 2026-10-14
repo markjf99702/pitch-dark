@@ -337,6 +337,27 @@ await page.setViewportSize({ width: 390, height: 844 });
   await sideways.close();
 }
 
+// On a big screen the room is laid out no bigger than a laptop's and drawn larger to fill the screen, so the beam lights as
+// much of it as on a phone, and the light still picks things up where they're drawn.
+{
+  const wide = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+  const big = await wide.newPage();
+  await big.goto(base + '?seed=18&room=2');
+  await big.click('#sheetBtn');
+  const look = await big.evaluate(() => {
+    const pd = window.__pitchDark, sc = pd.game.scene, v = pd.view;
+    return { s: v.s, area: sc.w * sc.h, left: v.ox, right: v.ox + sc.w * v.s, width: innerWidth };
+  });
+  assert.ok(look.area <= 775 * 775 + 1 && look.s > 1.5, `the room is laid out at the screen's size: ${JSON.stringify(look)}`);
+  assert.ok(Math.abs(look.left) < 1 && Math.abs(look.right - look.width) < 1, `the room doesn't fill the screen: ${JSON.stringify(look)}`);
+  const [first] = await big.evaluate(() => window.__pitchDark.game.shown());
+  const at = await big.evaluate(i => window.__pitchDark.screenOf(i), first);
+  await big.mouse.move(at.x - 40, at.y - 30);
+  await big.mouse.move(at.x, at.y, { steps: 4 });
+  await big.waitForFunction(i => window.__pitchDark.game.found.has(i), first, { timeout: 4000 });
+  await wide.close();
+}
+
 // The page starts as the title, so nothing moves when the script arrives; with JavaScript off it only says it's needed.
 {
   const early = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true });

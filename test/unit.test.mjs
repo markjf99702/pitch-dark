@@ -62,6 +62,31 @@ test('rooms lay out with a fair list, wherever and however often they are built'
   }
 });
 
+test('a big screen is no harder to search than a phone', () => {
+  // The battery lasts the same seconds everywhere, so the beam has to light the same share of the room, with no more
+  // things to look through, however big the screen. The room keeps the screen's shape so the page can draw it to fill it.
+  const look = (room, size) => {
+    let share = 0;
+    let things = 0;
+    for (let seed = 1; seed <= 10; seed++) {
+      const sc = buildScene(ROOMS[room], DIFFICULTY[room], size, rng(seed * 100 + room));
+      assert.ok(Math.abs(sc.w / sc.h - size.w / size.h) < 1e-9, `${size.w}x${size.h}: the room is not the screen's shape`);
+      share += (Math.PI * sc.beam ** 2) / (sc.w * sc.h) / 10;
+      things += sc.items.length / 10;
+    }
+    return { share, things };
+  };
+  for (const room of [0, 3, 6]) {
+    const phone = look(room, { w: 390, h: 647 });
+    for (const size of [{ w: 820, h: 1010 }, { w: 1280, h: 630 }, { w: 1920, h: 910 }, { w: 2560, h: 1270 }, { w: 3840, h: 1950 }]) {
+      const it = look(room, size);
+      const where = `${ROOMS[room].id} at ${size.w}x${size.h}`;
+      assert.ok(Math.abs(it.share / phone.share - 1) < 0.01, `${where}: the beam lights ${(it.share * 100).toFixed(1)}% of the room, ${(phone.share * 100).toFixed(1)}% on a phone`);
+      assert.ok(it.things <= phone.things * 1.15, `${where}: ${it.things.toFixed(0)} things to search, ${phone.things.toFixed(0)} on a phone`);
+    }
+  }
+});
+
 test('the same seed builds the same house', () => {
   const a = new Game(42).startRoom(3, SIZES[0]);
   const b = new Game(42).startRoom(3, SIZES[0]);

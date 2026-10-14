@@ -482,7 +482,7 @@ function frame(ms) {
     pointer.y = region.y + region.h * (0.5 + 0.36 * Math.sin(t * 0.51 + 1.3));
     lit = true;
   } else if (keys.size) {
-    const v = 420 * dt;
+    const v = 420 * view.s * dt; // the same pace across the room however large it's drawn
     if (keys.has('ArrowLeft')) pointer.x -= v;
     if (keys.has('ArrowRight')) pointer.x += v;
     if (keys.has('ArrowUp')) pointer.y -= v;

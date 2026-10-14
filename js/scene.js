@@ -6,8 +6,12 @@ import { BATTERY, lookalikeOf } from './rooms.js';
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
 // region: { w, h } in CSS pixels, the part of the screen the room fills.
+// On a big screen the room is laid out in at most 775 x 775 px of area (where things stop growing) and the page draws it
+// larger to fill the screen, so the beam lights the same share of the room on a monitor as on a phone.
 export function buildScene(room, diff, region, rand) {
-  const { w, h } = region;
+  const k = Math.min(1, 775 / Math.sqrt(region.w * region.h));
+  const w = region.w * k;
+  const h = region.h * k;
   const base = clamp(Math.sqrt(w * h) / 12.5, 32, 62);
   const E = Math.max(32, base * diff.scale); // the size of an ordinary thing
   const plank = E * 0.24;
