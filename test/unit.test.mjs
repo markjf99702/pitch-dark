@@ -52,14 +52,18 @@ test('rooms lay out with a fair list, wherever and however often they are built'
           assert.ok(c.x > 0 && c.x < sc.w && c.y > 0 && c.y < sc.h, `${where}: ${it.e} is outside the room`);
           assert.ok(it.size >= 24, `${where}: ${it.e} is tiny`);
         }
-        // A thing tucked at the back of a shelf keeps a gap in front of it.
+        // A thing tucked at the back of a shelf keeps at least half its width clear of the front row.
         for (const it of [...listed, ...sc.batteries.map((id) => sc.items[id])]) {
           if (it.layer !== 0) continue;
-          for (const f of sc.items) {
-            if (f.layer !== 1 || f.shelf !== it.shelf || f.kind !== 'thing') continue;
-            const overlap = Math.min(f.x + f.size / 2, it.x + it.size / 2) - Math.max(f.x - f.size / 2, it.x - it.size / 2);
-            assert.ok(overlap <= it.size * 0.45, `${where}: ${it.e} is hidden behind ${f.e}`);
+          const a = it.x - it.size / 2;
+          const b = it.x + it.size / 2;
+          const spans = sc.items.filter((f) => f.layer === 1 && f.shelf === it.shelf).map((f) => [Math.max(a, f.x - f.size / 2), Math.min(b, f.x + f.size / 2)]);
+          let covered = 0;
+          let end = a;
+          for (const [l, r] of spans.filter(([l, r]) => r > l).sort((p, q) => p[0] - q[0])) {
+            if (r > end) { covered += r - Math.max(l, end); end = r; }
           }
+          assert.ok(covered <= it.size * 0.5 + 1e-9, `${where}: ${it.e} is ${Math.round((100 * covered) / it.size)}% hidden behind the front row`);
         }
       });
     }

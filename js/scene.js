@@ -99,8 +99,9 @@ export function buildScene(room, diff, region, rand) {
   const centerOf = (it) => ({ x: it.x, y: it.bottom - it.size / 2 });
   const place = (thing, kind, tucked) => {
     const layer = tucked ? 0 : 1;
-    let pool = items.filter((it) => it.kind === 'thing' && (it.layer === layer || (!tucked && it.layer === 2 && (thing[2] || '').includes('big'))));
-    if (!pool.length) pool = items.filter((it) => it.kind === 'thing');
+    // Never a front-row thing already moved aside for a tucked one: it's taken out of the room at the end.
+    let pool = items.filter((it) => it.kind === 'thing' && !it.gone && (it.layer === layer || (!tucked && it.layer === 2 && (thing[2] || '').includes('big'))));
+    if (!pool.length) pool = items.filter((it) => it.kind === 'thing' && !it.gone);
     let best = null;
     let bestScore = -1;
     for (let i = 0; i < 10; i++) {
@@ -116,11 +117,26 @@ export function buildScene(room, diff, region, rand) {
     best.rot = rand.range(-6, 6);
     if (best.layer === 0) {
       best.size = Math.max(best.size, E * 0.84);
-      // Leave a gap in the front row so at least half of a tucked thing shows.
-      for (const f of items) {
-        if (f.layer !== 1 || f.shelf !== best.shelf || f.kind !== 'thing') continue;
-        const overlap = Math.min(f.x + f.size / 2, best.x + best.size / 2) - Math.max(f.x - f.size / 2, best.x - best.size / 2);
-        if (overlap > best.size * 0.45) f.gone = true;
+      // Leave a gap in the front row so at least half of a tucked thing shows: move aside anything in front that covers
+      // most of it on its own, then the widest of what's left in front until half its width is clear.
+      const a = best.x - best.size / 2;
+      const b = best.x + best.size / 2;
+      const span = (f) => [Math.max(a, f.x - f.size / 2), Math.min(b, f.x + f.size / 2)];
+      const front = items.filter((f) => f.layer === 1 && f.shelf === best.shelf && !f.gone && span(f)[1] > span(f)[0]);
+      const width = (f) => span(f)[1] - span(f)[0];
+      for (const f of front) if (f.kind === 'thing' && width(f) > best.size * 0.45) f.gone = true;
+      const covered = () => {
+        let sum = 0;
+        let end = a;
+        for (const [l, r] of front.filter((f) => !f.gone).map(span).sort((p, q) => p[0] - q[0])) {
+          if (r > end) { sum += r - Math.max(l, end); end = r; }
+        }
+        return sum;
+      };
+      while (covered() > best.size * 0.5) {
+        const fillers = front.filter((f) => !f.gone && f.kind === 'thing');
+        if (!fillers.length) break;
+        fillers.reduce((w, f) => (width(f) > width(w) ? f : w)).gone = true;
       }
     } else {
       best.size = Math.max(best.size, E * (best.layer === 2 ? 1.1 : 0.95));
