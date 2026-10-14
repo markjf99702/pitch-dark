@@ -234,7 +234,7 @@ function showSheet({ kicker = '', title, body, button, small = '', onGo, alt = n
   sheet.classList.toggle('title-screen', titleScreen);
   sheet.classList.remove('hidden');
   sheet.inert = false;
-  list.classList.add('off');
+  showList(false);
   sheetGo = onGo;
   sheetAlt = alt && alt.onGo;
 }
@@ -282,6 +282,11 @@ $('modes').addEventListener('keydown', (e) => {
 
 function setMode(m) { mode = m; modeAt = now; }
 
+// The top bar and the list fade out for the title and the cards. Inert as well, so a hidden button can't be tapped
+// or tabbed to, and a screen reader doesn't read out the list of the room behind the title.
+function showHud(on) { hud.style.opacity = on ? '1' : '0'; hud.inert = !on; }
+function showList(on) { list.classList.toggle('off', !on); list.inert = !on; }
+
 function roomsWord(n) { return `${n} ${n === 1 ? 'room' : 'rooms'}`; }
 const lower = (name) => name.replace(/^The /, 'the ');
 
@@ -289,7 +294,7 @@ const lower = (name) => name.replace(/^The /, 'the ');
 
 function showTitle() {
   game = new Game(fixedSeed ?? randomSeed());
-  hud.style.opacity = '0';
+  showHud(false);
   newRoom(startRoom);
   setMode('title');
   showSheet({
@@ -305,10 +310,10 @@ function showTitle() {
 
 function begin() {
   game = new Game(fixedSeed ?? randomSeed(), chosen);
-  hud.style.opacity = '1';
+  showHud(true);
   hideSheet();
   newRoom(startRoom);
-  list.classList.remove('off');
+  showList(true);
   pointer.active = false;
   setMode('play');
   if (!hinted) showHint();
@@ -318,7 +323,7 @@ function begin() {
 function nextRoom() {
   hideSheet();
   newRoom(game.roomIndex + 1);
-  list.classList.remove('off');
+  showList(true);
   pointer.active = pointer.active && !pointer.touch;
   setMode('play');
 }

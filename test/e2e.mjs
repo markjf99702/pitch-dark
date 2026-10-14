@@ -42,6 +42,14 @@ async function pickUp(id) {
   await page.waitForFunction(i => window.__pitchDark.game.found.has(i), id, { timeout: 4000 });
 }
 
+// What a screen reader gets: the names in Chrome's accessibility tree.
+async function screenReader() {
+  const cdp = await ctx.newCDPSession(page);
+  const { nodes } = await cdp.send('Accessibility.getFullAXTree');
+  await cdp.detach();
+  return nodes.filter(n => !n.ignored && n.name && n.name.value).map(n => n.name.value);
+}
+
 // Records the mode, the room's light and whether a card is up, every frame, until the next recording starts.
 const recordFrames = () => pd(() => {
   const frames = window.__frames = [];
@@ -73,6 +81,19 @@ await page.evaluate(() => document.fonts.ready);
 assert.equal(await text('#sheetTitle'), 'Pitch Dark');
 assert.equal(await pd(() => window.__pitchDark.mode), 'title');
 
+// The top bar and the list are faded out on the title, and out of reach: no tabbing, no taps, nothing for a screen reader.
+await page.keyboard.press('Tab');
+assert.equal(await pd(() => document.activeElement.id), 'room');
+assert.notEqual(await pd(() => getComputedStyle(document.activeElement).outlineStyle), 'none', 'the room shows no focus');
+await page.keyboard.press('Tab');
+assert.equal(await pd(() => document.activeElement.getAttribute('role')), 'radio', 'Tab stops on something hidden');
+const soundAt = await page.locator('#soundBtn').boundingBox();
+await page.touchscreen.tap(soundAt.x + soundAt.width / 2, soundAt.y + soundAt.height / 2);
+assert.equal(await page.getAttribute('#soundBtn', 'aria-pressed'), 'true', 'a tap where the hidden sound button sits turned the sound off');
+const heard = await screenReader();
+const decoys = ['Sound', 'Battery', 'The hall closet', ...await game(g => g.shown().map(i => g.scene.items[i].name))];
+assert.deepEqual(decoys.filter(d => heard.includes(d)), [], 'a screen reader hears the hidden top bar or list');
+
 // Switch on: the first room, with three things on the list.
 await page.click('#sheetBtn');
 assert.equal(await pd(() => window.__pitchDark.mode), 'play');
@@ -84,6 +105,7 @@ assert.equal(shown.length, 3);
 const names = await page.locator('#wants .want .n').allInnerTexts();
 assert.deepEqual(names, await game((g, ids) => ids.map(i => g.scene.items[i].name), shown));
 assert.ok(await page.locator('#hint').isVisible(), 'the first room explains the controls');
+assert.equal(await pd(() => document.getElementById('hud').inert || document.getElementById('list').inert), false, 'the top bar and the list come back once the game starts');
 
 // With the light off, the battery doesn't drain.
 await page.waitForTimeout(600);

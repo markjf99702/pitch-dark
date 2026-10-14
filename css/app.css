@@ -51,6 +51,7 @@ canvas#room {
   cursor: none;
   outline: none;
 }
+canvas#room:focus-visible { outline: 2px solid var(--beam); outline-offset: -2px; }
 
 /* --- Top bar --- */
 
