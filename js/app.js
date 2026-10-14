@@ -25,7 +25,7 @@ const safeArea = $('safeArea');
 
 const params = new URLSearchParams(location.search);
 const fixedSeed = params.has('seed') ? Number(params.get('seed')) >>> 0 : null;
-const startRoom = Math.min(ROOMS.length - 1, Math.max(0, Number(params.get('room')) || 0));
+const startRoom = Math.min(ROOMS.length - 1, Math.max(0, Math.floor(Number(params.get('room'))) || 0));
 let chosen = Object.hasOwn(MODES, params.get('mode') ?? '') ? params.get('mode') : readMode(); // the difficulty picked on the title screen
 let titleBeam = MODES[chosen].beam; // the title screen's beam grows and shrinks to match
 const coarse = matchMedia('(pointer: coarse)').matches;

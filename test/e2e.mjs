@@ -187,6 +187,12 @@ assert.ok(v.oy + lowest * v.s <= headBox.y + 2, 'things on the floor run under t
 const highest = await game(g => Math.min(...g.scene.items.map(i => i.bottom - i.size)));
 assert.ok(v.oy + highest * v.s >= hudBox.y + hudBox.height - 12, 'things on the top shelf run under the top bar');
 
+// A room number that isn't whole still opens a room.
+await page.goto(base + '?seed=12&room=1.5');
+await page.waitForFunction(() => window.__pitchDark.game?.scene, null, { timeout: 5000 });
+await page.click('#sheetBtn');
+assert.equal(await text('#roomNo'), 'Room 2 of 7');
+
 // The last room: find everything and the power comes back.
 await page.goto(base + '?seed=12&room=6');
 await page.click('#sheetBtn');
