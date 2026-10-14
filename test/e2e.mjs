@@ -328,6 +328,33 @@ await page.setViewportSize({ width: 390, height: 844 });
   await sideways.close();
 }
 
+// The page starts as the title, so nothing moves when the script arrives; with JavaScript off it only says it's needed.
+{
+  const early = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true });
+  const first = await early.newPage();
+  let release;
+  const held = new Promise(r => { release = r; });
+  await first.route('**/js/app.js', async route => { await held; await route.continue(); });
+  await first.goto(base + '?seed=3', { waitUntil: 'commit' });
+  await first.waitForSelector('#sheet', { state: 'attached' });
+  await first.evaluate(() => document.fonts.ready);
+  const look = () => first.evaluate(() => ({ title: document.getElementById('sheet').classList.contains('title-screen'), top: Math.round(document.getElementById('sheet').getBoundingClientRect().top), hud: getComputedStyle(document.getElementById('hud')).opacity, list: getComputedStyle(document.getElementById('list')).opacity }));
+  const before = await look();
+  assert.deepEqual({ ...before, top: 0 }, { title: true, top: 0, hud: '0', list: '0' }, 'before the script runs, the page is not the title');
+  release();
+  await first.waitForFunction(() => window.__pitchDark?.mode === 'title');
+  await first.waitForTimeout(700);
+  assert.ok(Math.abs((await look()).top - before.top) < 20, 'the title card moves when the script arrives');
+  await early.close();
+
+  const off = await browser.newContext({ viewport: { width: 390, height: 844 }, javaScriptEnabled: false });
+  const nojs = await off.newPage();
+  await nojs.goto(base);
+  assert.ok(await nojs.locator('.noscript').isVisible());
+  for (const sel of ['#sheet', '#hud', '#list']) assert.ok(await nojs.locator(sel).isHidden(), `${sel} shows with JavaScript off`);
+  await off.close();
+}
+
 // On a touchscreen the light shines a little above your finger, so the finger doesn't hide what it lights.
 {
   await page.goto(base + '?seed=14');
