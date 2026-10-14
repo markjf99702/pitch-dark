@@ -156,6 +156,7 @@ function renderList(fresh = false) {
   }));
   const more = game && game.scene ? game.waiting() : 0;
   $('more').textContent = more ? `${more} more after these` : '';
+  if (game) game.listed = new Set(slots); // only what the list shows can be picked up
 }
 
 function crossOff(id) {
@@ -195,6 +196,7 @@ function renderSlot(i) {
     li.lastChild.textContent = it.name;
   }
   old.replaceWith(li);
+  game.listed = new Set(slots);
   return id == null ? null : li;
 }
 

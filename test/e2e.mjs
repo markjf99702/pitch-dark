@@ -221,6 +221,19 @@ assert.equal(await pd(() => JSON.parse(localStorage.getItem('pitch-dark:best')).
   await page.evaluate(() => localStorage.setItem('pitch-dark:mode', 'medium'));
 }
 
+// Right after a find, the next thing on the list can't be picked up until the list shows it.
+{
+  await page.goto(base + '?seed=8&room=4');
+  await page.click('#sheetBtn');
+  const [first] = await game(g => g.shown());
+  const fourth = await game(g => g.scene.list[3]);
+  await pickUp(first);
+  const spot = await pd(i => window.__pitchDark.screenOf(i), fourth);
+  await page.mouse.move(spot.x, spot.y, { steps: 2 });
+  const listed = await page.waitForFunction(i => window.__pitchDark.game.found.has(i) && (document.querySelector(`#wants [data-id="${i}"]`) ? 'on the list' : 'not on the list yet'), fourth, { polling: 'raf', timeout: 6000 });
+  assert.equal(await listed.jsonValue(), 'on the list', 'the next thing was picked up before the list showed it');
+}
+
 // With reduced motion the lightning lights the room in one go, the list doesn't slide, and the flashlight fades out without flickering.
 {
   await page.emulateMedia({ reducedMotion: 'reduce' });

@@ -34,6 +34,7 @@ export class Game {
     this.scene = null;
     this.found = new Set();
     this.aim = null; // { id, t } the thing the light is resting on
+    this.listed = null; // the list things the page is showing, if it says (a found one's place takes a moment to fill)
     this.firstRoom = null;
   }
 
@@ -53,6 +54,7 @@ export class Game {
     this.scene = buildScene(ROOMS[index], diff, region, rand);
     this.found = new Set();
     this.aim = null;
+    this.listed = null;
     this.state = 'playing';
     return this.scene;
   }
@@ -67,9 +69,9 @@ export class Game {
     return Math.max(0, this.scene.list.length - this.found.size - this.shown().length);
   }
 
-  // Things that can be picked up right now: shown list things and spare batteries.
+  // Things that can be picked up right now: shown list things that are on the page's list, and spare batteries.
   pickable() {
-    const ids = this.shown();
+    const ids = this.shown().filter((id) => !this.listed || this.listed.has(id));
     for (const id of this.scene.batteries) if (!this.found.has(id)) ids.push(id);
     return ids;
   }

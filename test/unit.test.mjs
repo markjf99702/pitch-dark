@@ -108,6 +108,19 @@ test('things that are not on the list yet cannot be picked up', () => {
   assert.equal(g.collect(later), null);
 });
 
+test('the next list thing waits until the page shows it', () => {
+  const g = new Game(5);
+  g.startRoom(1, SIZES[0]);
+  g.listed = new Set(g.shown()); // what the page's list shows
+  g.collect(g.shown()[0]);
+  const next = g.scene.list[LIST_SHOWN];
+  assert.ok(g.shown().includes(next), 'the rules move the list along at once');
+  assert.equal(g.tick(DWELL * 2, true, aimAt(g, next)), null, 'but the list still shows the thing just found');
+  assert.equal(g.collect(next), null);
+  g.listed = new Set(g.shown()); // the page fills the place
+  assert.deepEqual(g.collect(next), { type: 'found', id: next });
+});
+
 test('a spare battery tops the flashlight up, but not past full', () => {
   const g = new Game(9);
   g.startRoom(0, SIZES[0]);
