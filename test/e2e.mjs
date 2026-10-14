@@ -367,6 +367,8 @@ await page.setViewportSize({ width: 390, height: 844 });
 {
   const wide = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
   const big = await wide.newPage();
+  big.on('pageerror', e => problems.push(e.message));
+  big.on('console', m => { if (m.type() === 'error') problems.push(m.text()); });
   await big.goto(base + '?seed=18&room=2');
   await big.click('#sheetBtn');
   const look = await big.evaluate(() => {
