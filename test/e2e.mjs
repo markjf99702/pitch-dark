@@ -265,6 +265,31 @@ assert.equal(await pd(() => JSON.parse(localStorage.getItem('pitch-dark:best')).
   assert.equal(await listed.jsonValue(), 'on the list', 'the next thing was picked up before the list showed it');
 }
 
+// The same seed builds the same house. A room is laid out to fit between the top bar and the list, so it mustn't depend on
+// what the list says when the room before is cleared (a long name takes two lines), and the title shows the room you play.
+{
+  const room = () => game(g => ({ h: g.scene.h, things: g.scene.items.map(i => i.e).join('') }));
+  const pantry = async (words) => {
+    await page.goto(base + '?seed=19&mode=medium');
+    await page.waitForFunction(() => window.__pitchDark?.mode === 'title');
+    const title = await room();
+    await page.click('#sheetBtn');
+    assert.deepEqual(await room(), title, 'the title shows a different room from the one you play');
+    while ((await game(g => g.shown())).length) await pickUp((await game(g => g.shown()))[0]);
+    await page.waitForFunction(() => window.__pitchDark.mode === 'cleared' && !document.getElementById('sheet').classList.contains('hidden'), null, { timeout: 5000 });
+    const listHeight = await page.evaluate(w => {
+      for (const n of document.querySelectorAll('#wants .n')) n.textContent = w;
+      return document.getElementById('list').getBoundingClientRect().height;
+    }, words);
+    await page.click('#sheetBtn');
+    return { listHeight, room: await room() };
+  };
+  const short = await pantry('Cap');
+  const long = await pantry('Long-neck dinosaur');
+  assert.ok(long.listHeight > short.listHeight, 'a long name on the list takes one line');
+  assert.deepEqual(long.room, short.room, 'the pantry depends on what the list said when the closet was cleared');
+}
+
 // With reduced motion the lightning lights the room in one go, the list doesn't slide, and the flashlight fades out without flickering.
 {
   await page.emulateMedia({ reducedMotion: 'reduce' });

@@ -197,6 +197,9 @@ button { font: inherit; color: inherit; }
 }
 .want .e { font-family: var(--emoji); font-size: 30px; line-height: 1.1; }
 .want .n { font-family: var(--hand); font-size: 20px; font-weight: 600; line-height: 1; color: var(--ink); overflow-wrap: break-word; max-width: 100%; }
+/* While the page measures the room, every name takes two lines, the most a long name wraps to, so the room is the same
+   whatever the list says (and a seed always builds the same house). */
+.list.sizing .want .n { min-height: 2em; }
 .want.got .n { text-decoration: line-through; text-decoration-thickness: 2px; color: var(--beam); }
 .want.got .e { opacity: 0.35; }
 .want.leaving { opacity: 0; transform: translateY(6px); }

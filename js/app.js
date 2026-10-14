@@ -85,7 +85,9 @@ function measure() {
   const W = innerWidth;
   const H = innerHeight;
   const top = hud.getBoundingClientRect().bottom - 4;
+  list.classList.add('sizing'); // as tall as the list gets, whatever it says
   const bottom = list.querySelector('.list-head').getBoundingClientRect().top - 2;
+  list.classList.remove('sizing');
   const sides = safeArea.getBoundingClientRect(); // clear of a notch at the sides, like the top bar and the list
   region = { x: sides.left, y: top, w: sides.width, h: Math.max(200, bottom - top) };
   return { W, H };
@@ -302,6 +304,7 @@ const lower = (name) => name.replace(/^The /, 'the ');
 function showTitle() {
   game = new Game(fixedSeed ?? randomSeed());
   showHud(false);
+  if (!wants.children.length) renderList(); // the list's three places, so the title's room is measured like the rest
   newRoom(startRoom);
   setMode('title');
   showSheet({
