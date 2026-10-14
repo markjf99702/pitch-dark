@@ -35,7 +35,7 @@ node tools/make-icons.mjs     # redraws the PNG icons from icon.svg
 npm run build                 # optional: dist/pitch-dark.html, the whole game in one file
 ```
 
-Add `?seed=123` to the address to get the same house every time, `&room=4` to start in a later room, and `&mode=hard` to pick a difficulty.
+Add `?seed=123` to the address to get the same house every time, `&room=4` to start in a later room (rooms count from 0, so 4 is the garage), and `&mode=hard` to pick a difficulty.
 
 To put it online with GitHub Pages: **Settings → Pages → Build and deployment → Deploy from a branch**, then pick `main` and `/ (root)`.
 
@@ -47,6 +47,8 @@ To put it online with GitHub Pages: **Settings → Pages → Build and deploymen
 - `js/draw.js`: draws the room and the flashlight beam.
 - `js/app.js`: the page: input, the frame loop, the list and the messages between rooms.
 - `js/sound.js`: the switch, the pick-up chime, the thunder and the lights, all made with Web Audio.
+- `js/rng.js`: seeded random numbers, so a house can be rebuilt from its seed.
 - `fonts/`: Bricolage Grotesque and Caveat (SIL Open Font License), served from here so nothing loads from elsewhere.
 - `sw.js`: keeps a copy for playing offline.
+- `carry.js`: the first time the game opens at this address, brings your best scores and settings over from the old one, junkdrawer.works/pitch-dark/.
 - `scripts/build.mjs`: bundles the game into one HTML file.

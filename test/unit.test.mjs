@@ -172,6 +172,13 @@ test('the offline copy includes every file the game needs', async () => {
   for (const f of needed) assert.ok(listed.has(f), `sw.js doesn't keep ${f}`);
 });
 
+test('the README names every script', async () => {
+  const { readFile, readdir } = await import('node:fs/promises');
+  const readme = await readFile(new URL('../README.md', import.meta.url), 'utf8');
+  const scripts = [...(await readdir(new URL('../js/', import.meta.url))).map((f) => `js/${f}`), 'carry.js'];
+  for (const f of scripts) assert.ok(readme.includes(`\`${f}\``), `README.md doesn't mention ${f}`);
+});
+
 test('easy, medium and hard change the battery, the beam and the spares', () => {
   const { easy, medium, hard } = MODES;
   assert.ok(easy.drain < medium.drain && medium.drain < hard.drain, 'the battery lasts longest on easy');
