@@ -60,6 +60,11 @@ const timeIn = m => pd(m => {
   const card = f.find(x => x.card);
   return { secs: f[f.length - 1].t - f[0].t, light: Math.max(...f.map(x => x.light)), untilCard: card ? card.t - f[0].t : null };
 }, m);
+// Sets the battery the moment a mode starts; it stays put once a room is done.
+const chargeWhen = (m, charge) => pd(([m, c]) => {
+  const w = () => { if (window.__pitchDark.mode === m) window.__pitchDark.game.charge = c; else requestAnimationFrame(w); };
+  requestAnimationFrame(w);
+}, [m, charge]);
 
 await page.goto(base + '?seed=11');
 await page.evaluate(() => document.fonts.ready);
@@ -112,12 +117,14 @@ await page.waitForFunction(() => document.querySelector('#batteryPct').textConte
 // Find the rest: lightning shows the room, then on to the next one.
 while ((await game(g => g.shown())).length > 1) await pickUp((await game(g => g.shown()))[0]);
 await recordFrames();
+await chargeWhen('reveal', 0.554);
 await pickUp((await game(g => g.shown()))[0]);
 await page.waitForFunction(() => window.__pitchDark.mode === 'cleared', null, { timeout: 4000 });
 const lightning = await timeIn('reveal');
 assert.ok(lightning.secs > 1 && lightning.light > 0.9, `the lightning flashes before the card comes up: ${JSON.stringify(lightning)}`);
 assert.equal(await text('#sheetTitle'), 'Got everything in the hall closet');
-assert.match(await text('#sheetBody'), /% battery left\. Next is the pantry\./);
+assert.equal(await text('#sheetBody'), '56% battery left. Next is the pantry.', 'the card says what the top bar says (55.4% rounds up)');
+assert.equal(await text('#batteryPct'), '56%');
 await page.click('#sheetBtn');
 assert.equal(await pd(() => window.__pitchDark.mode), 'play');
 assert.equal(await text('#roomName'), 'The pantry');
@@ -164,10 +171,12 @@ await page.click('#sheetBtn');
 assert.equal(await text('#roomName'), 'The attic');
 while ((await game(g => g.shown())).length > 1) await pickUp((await game(g => g.shown()))[0]);
 await recordFrames();
+await chargeWhen('won', 0.554);
 await pickUp((await game(g => g.shown()))[0]);
 await page.waitForFunction(() => document.querySelector('#sheetTitle').textContent === 'The power’s back', null, { timeout: 5000 });
 assert.ok((await timeIn('won')).untilCard > 1, 'the lights come back on before the card comes up');
-assert.match(await text('#sheetBody'), /^You found all 6 things with \d+% battery left\.$/);
+assert.equal(await text('#sheetBody'), 'You found all 6 things with 56% battery left.');
+assert.equal(await text('#batteryPct'), '56%');
 assert.equal(await pd(() => JSON.parse(localStorage.getItem('pitch-dark:best')).wins), 1);
 
 // Difficulty: picked on the title screen, remembered, and each has its own best.

@@ -540,7 +540,7 @@ function frame(ms) {
       showSheet({
         kicker: `Room ${game.roomIndex + 1} of ${game.roomCount}`,
         title: `Got everything in ${lower(game.room.name)}`,
-        body: `${Math.round(game.charge * 100)}% battery left. Next is ${lower(next.name)}.`,
+        body: `${percent()}% battery left. Next is ${lower(next.name)}.`,
         button: `Go to ${lower(next.name)}`,
         onGo: nextRoom,
       });
@@ -554,7 +554,7 @@ function frame(ms) {
       showSheet({
         kicker: `Room ${game.roomCount} of ${game.roomCount}`,
         title: 'The power’s back',
-        body: `You found all ${game.foundTotal} things with ${Math.round(game.charge * 100)}% battery left.`,
+        body: `You found all ${game.foundTotal} things with ${percent()}% battery left.`,
         button: 'Play again',
         small: bestLine(best, game.modeName),
         onGo: begin,
@@ -664,9 +664,12 @@ function highlightAim() {
   for (const li of wants.children) li.classList.toggle('aiming', id != null && li.dataset.id === String(id));
 }
 
+// The battery as a whole percent, rounded up so it says 1% until it's really empty. The top bar and the cards both use it.
+const percent = () => Math.ceil(game.charge * 100);
+
 function updateBattery() {
   if (!game) return;
-  const pct = Math.ceil(game.charge * 100);
+  const pct = percent();
   if (pct === lastPct) return;
   lastPct = pct;
   $('batteryPct').textContent = `${pct}%`;
