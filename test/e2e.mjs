@@ -382,6 +382,29 @@ await page.setViewportSize({ width: 390, height: 844 });
   assert.equal(await game(g => g.charge), held, 'lifting the finger switches the light off');
 }
 
+// A damaged best in storage reads back as whole numbers, never as odd text, and is saved back in the usual shape.
+{
+  for (const [stored, shown] of [
+    ['{"found":5,"wins":"x"}', 'Best on medium: 5 things'],
+    ['{"found":"12","wins":"2"}', 'Best on medium: 12 things · Made it through the house twice'],
+    ['{"found":1e400}', ''],
+    ['{"found":-3,"wins":2.7}', ''],
+    ['"7"', ''],
+  ]) {
+    await page.evaluate(v => localStorage.setItem('pitch-dark:best', v), stored);
+    await page.goto(base + '?seed=17&mode=medium');
+    await page.waitForFunction(() => window.__pitchDark?.mode === 'title');
+    assert.equal(await text('#sheetSmall'), shown, `the best stored as ${stored}`);
+  }
+  await page.click('#sheetBtn');
+  await game(g => { g.charge = 0.003; });
+  await page.mouse.move(150, 400);
+  await page.mouse.move(170, 410, { steps: 3 });
+  await page.waitForFunction(() => window.__pitchDark.mode === 'dead', null, { timeout: 6000 });
+  assert.equal(await pd(() => localStorage.getItem('pitch-dark:best')), '{"found":0,"wins":0}');
+  await page.evaluate(() => localStorage.removeItem('pitch-dark:best'));
+}
+
 // Works offline once it has been opened.
 await page.waitForFunction(() => navigator.serviceWorker?.controller, null, { timeout: 10000 }).catch(() => {});
 await ctx.setOffline(true);

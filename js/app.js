@@ -57,7 +57,12 @@ function readMode() {
 // Medium keeps the key from before there were difficulties, so earlier bests carry over.
 const bestKey = (m) => (m === 'medium' ? 'pitch-dark:best' : `pitch-dark:best:${m}`);
 function readBest(m) {
-  try { return { found: 0, wins: 0, ...JSON.parse(localStorage.getItem(bestKey(m)) || '{}') }; } catch { return { found: 0, wins: 0 }; }
+  // Whatever is stored, read back two whole numbers, so a damaged or hand-edited best can't show odd text.
+  const n = (v) => (Number.isFinite(+v) && +v > 0 ? Math.floor(+v) : 0);
+  try {
+    const best = JSON.parse(localStorage.getItem(bestKey(m)) || '{}');
+    return best && typeof best === 'object' ? { found: n(best.found), wins: n(best.wins) } : { found: 0, wins: 0 };
+  } catch { return { found: 0, wins: 0 }; }
 }
 function saveBest(m, found, won) {
   const best = readBest(m);
