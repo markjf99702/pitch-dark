@@ -354,5 +354,5 @@ button { font: inherit; color: inherit; }
 
 @media (prefers-reduced-motion: reduce) {
   .flyer, .want, .sheet { transition: none; }
-  .battery.critical .cell { animation: none; }
+  .battery.critical .cell, .battery.charged .cell, .want.arriving { animation: none; }
 }

@@ -212,6 +212,47 @@ assert.equal(await pd(() => JSON.parse(localStorage.getItem('pitch-dark:best')).
   await page.evaluate(() => localStorage.setItem('pitch-dark:mode', 'medium'));
 }
 
+// With reduced motion the lightning lights the room in one go, the list doesn't slide, and the flashlight fades out without flickering.
+{
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto(base + '?seed=16');
+  await page.click('#sheetBtn');
+  while ((await game(g => g.shown())).length > 1) await pickUp((await game(g => g.shown()))[0]);
+  await recordFrames();
+  await pickUp((await game(g => g.shown()))[0]);
+  await page.waitForFunction(() => window.__pitchDark.mode === 'cleared', null, { timeout: 4000 });
+  const light = await pd(() => window.__frames.filter(f => f.mode === 'reveal').map(f => f.light));
+  const peak = light.indexOf(Math.max(...light));
+  assert.ok(light.length > 20 && light.every((v, i) => !i || (i <= peak ? v >= light[i - 1] : v <= light[i - 1])), `the lightning flickers with reduced motion: ${light.map(v => v.toFixed(2))}`);
+  assert.equal(await pd(() => { const li = document.querySelector('#wants .want'); li.classList.add('arriving'); return getComputedStyle(li).animationName; }), 'none', 'a new list thing slides in with reduced motion');
+  await page.click('#sheetBtn');
+  await page.mouse.move(195, 420);
+  await page.mouse.move(205, 430, { steps: 3 });
+  // How bright the room is under the beam, frame by frame, while the flashlight dies.
+  await pd(() => {
+    const room = document.getElementById('room').getContext('2d');
+    window.__glow = [];
+    const rec = () => {
+      if (window.__pitchDark.mode === 'dying') {
+        const { x, y } = window.__pitchDark.beamPos;
+        const d = window.__pitchDark.view.dpr;
+        const px = room.getImageData(Math.round(x * d) - 40, Math.round(y * d) - 40, 80, 80).data;
+        let sum = 0;
+        for (let i = 0; i < px.length; i += 4) sum += px[i] + px[i + 1] + px[i + 2];
+        window.__glow.push(sum / (px.length / 4) / 3);
+      }
+      if (window.__pitchDark.mode !== 'dead') requestAnimationFrame(rec);
+    };
+    requestAnimationFrame(rec);
+  });
+  await game(g => { g.charge = 0.003; });
+  await page.waitForFunction(() => window.__pitchDark.mode === 'dead', null, { timeout: 6000 });
+  const glow = await pd(() => window.__glow);
+  const backUp = Math.max(...glow.map((v, i) => v - Math.min(...glow.slice(0, i + 1))));
+  assert.ok(glow.length > 20 && backUp < 3, `the flashlight flickers as it dies with reduced motion (it came back up by ${backUp.toFixed(1)})`);
+  await page.emulateMedia({ reducedMotion: null });
+}
+
 // Fits a phone: nothing scrolls sideways.
 assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, 'the page scrolls sideways on a phone');
 
