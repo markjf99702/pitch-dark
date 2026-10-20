@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { ROOMS, DIFFICULTY, LOOKALIKES, lookalikeOf } from '../js/rooms.js';
 import { buildScene, centerOf } from '../js/scene.js';
-import { Game, MODES, LIST_SHOWN } from '../js/game.js';
+import { Game, MODES, LIST_SHOWN, cleanRun } from '../js/game.js';
 
 const { drain: DRAIN, boost: BATTERY_BOOST, dwell: DWELL } = MODES.medium;
 import { rng } from '../js/rng.js';
@@ -131,6 +131,73 @@ test('a room laid out again for a turned phone keeps its list, its finds and its
   assert.deepEqual([...g.found].sort(), [thing, spare].sort());
   assert.equal(back.get(map.get(thing)), thing);
   assert.equal(g.state, 'dead', 'laying out again brings the flashlight back');
+});
+
+test('a saved run carries on where it was, read back through storage', () => {
+  const size = { w: 390, h: 640 };
+  const emoji = (sc, ids) => ids.map((id) => sc.items[id].e);
+  const g = new Game(77, 'hard');
+  g.startRoom(1, size);
+  g.collect(g.shown()[0]);
+  g.startRoom(3, size); // walked on to the bathroom
+  g.foundTotal = 9;
+  const thing = g.shown()[2];
+  g.collect(thing);
+  g.charge = 0.2;
+  const spare = g.scene.batteries[0];
+  g.collect(spare);
+  g.charge = 0.37;
+  const run = cleanRun(JSON.parse(JSON.stringify(g.snapshot())));
+  assert.deepEqual(run, g.snapshot(), 'the run changes on its way through storage');
+
+  const back = Game.resume(run);
+  back.startRoom(run.room, size, run);
+  assert.deepEqual([back.modeName, back.roomIndex, back.charge, back.foundTotal, back.roomsVisited], ['hard', 3, 0.37, 10, 3]);
+  assert.deepEqual(back.scene.items.map((i) => [i.e, i.x, i.bottom]), g.scene.items.map((i) => [i.e, i.x, i.bottom]), 'the same screen builds a different room');
+  assert.deepEqual([...back.found].sort(), [thing, spare].sort());
+  // On a screen of another shape, the same list, finds and spares.
+  const other = Game.resume(run);
+  other.startRoom(run.room, { w: 800, h: 250 }, run);
+  assert.deepEqual(emoji(other.scene, other.scene.list), emoji(g.scene, g.scene.list));
+  assert.deepEqual(emoji(other.scene, other.shown()), emoji(g.scene, g.shown()));
+  assert.deepEqual(emoji(other.scene, [...other.found]).sort(), [g.scene.items[thing].e, '🔋'].sort());
+
+  // A cleared room carries on at the start of the next; a run that's over has nothing to carry on.
+  while (g.shown().length) g.collect(g.shown()[0]);
+  assert.deepEqual(cleanRun(g.snapshot()), { ...run, room: 4, foundTotal: g.foundTotal, list: [], found: [], spares: [] });
+  g.startRoom(6, size);
+  while (g.shown().length) g.collect(g.shown()[0]);
+  assert.equal(g.state, 'won');
+  assert.equal(g.snapshot(), null);
+  const dead = new Game(3);
+  dead.startRoom(0, size);
+  dead.charge = 0.001;
+  dead.tick(1, true, null);
+  assert.equal(dead.snapshot(), null);
+});
+
+test('a damaged or hand-edited saved run never breaks the game', () => {
+  const good = { seed: 5, mode: 'medium', room: 2, firstRoom: 0, charge: 0.5, foundTotal: 7, list: [], found: [], spares: [] };
+  const g = new Game(5);
+  g.startRoom(2, { w: 390, h: 640 });
+  const list = g.scene.list.map((id) => g.scene.items[id].e);
+  for (const bad of [null, 7, '{}', [], { ...good, seed: '5' }, { ...good, mode: 'insane' }, { ...good, mode: 'constructor' }, { ...good, room: 7 },
+    { ...good, room: 1.5 }, { ...good, room: '2' }, { ...good, charge: 0 }, { ...good, charge: 1.5 }, { ...good, charge: '0.5' }, { ...good, charge: NaN }]) {
+    assert.equal(cleanRun(bad), null, JSON.stringify(bad));
+  }
+  assert.deepEqual(cleanRun({ ...good, firstRoom: 4, foundTotal: -2 }), { ...good, firstRoom: 2, foundTotal: 0 });
+  assert.deepEqual(cleanRun({ ...good, foundTotal: 1e9 }), { ...good, foundTotal: 0 });
+  assert.deepEqual(cleanRun({ ...good, seed: 2 ** 32 + 5 }), good);
+  // A list this room couldn't have starts the room afresh; places that aren't there are dropped.
+  for (const wrong of [list.slice(1), [...list.slice(1), list[1]], [...list.slice(1), '🦄'], 'abc', null]) {
+    assert.deepEqual(cleanRun({ ...good, list: wrong, found: [0], spares: [0] }), good, JSON.stringify(wrong));
+  }
+  assert.deepEqual(cleanRun({ ...good, list, found: [1, 1, 9, -1, 0.5, '2'], spares: [0, 1, 3] }), { ...good, list, found: [1], spares: [0] });
+  // Everything found: on to the next room, or nothing to carry on after the attic.
+  assert.deepEqual(cleanRun({ ...good, list, found: [0, 1, 2, 3, 4] }), { ...good, room: 3 });
+  const attic = new Game(5);
+  attic.startRoom(6, { w: 390, h: 640 });
+  assert.equal(cleanRun({ ...good, room: 6, list: attic.scene.list.map((id) => attic.scene.items[id].e), found: [0, 1, 2, 3, 4, 5] }), null);
 });
 
 test('the same seed builds the same house', () => {

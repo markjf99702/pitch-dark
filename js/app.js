@@ -1,6 +1,6 @@
 // Pitch Dark: the page. Input, the frame loop, the list and the messages between rooms.
 
-import { Game, LOW, MODES } from './game.js';
+import { Game, LOW, MODES, cleanRun } from './game.js';
 import { ROOMS } from './rooms.js';
 import { centerOf } from './scene.js';
 import { drawRoom, beam as drawBeam, beamAt } from './draw.js';
@@ -79,6 +79,28 @@ function bestLine(best, m) {
   return `Best on ${MODES[m].name.toLowerCase()}: ${things}${wins}`;
 }
 
+// --- The run so far, so a reload, or a tab the phone throws away, can carry on where it was ---
+
+const RUN = 'pitch-dark:run';
+function readRun() {
+  try { return cleanRun(JSON.parse(localStorage.getItem(RUN) || 'null')); } catch { return null; }
+}
+// After each find and room change, and whenever the page is hidden or goes away, so the battery is saved as it is.
+function saveRun() {
+  if (!game || mode === 'title') return; // the title's room is only for show
+  const run = game.snapshot();
+  try { if (run) localStorage.setItem(RUN, JSON.stringify(run)); else localStorage.removeItem(RUN); } catch { /* storage blocked */ }
+}
+// The run is over (the flashlight died, or the power's back). It counts toward the best straight away, so a reload
+// during the flicker or the lights coming back can't lose it, and it's no longer there to carry on.
+let ended = null;
+function endRun(won) {
+  try { localStorage.removeItem(RUN); } catch { /* storage blocked */ }
+  ended = saveBest(game.modeName, game.foundTotal, won);
+  return ended;
+}
+const carryLabel = (run) => `Carry on in ${lower(ROOMS[run.room].name)}${run.mode === chosen ? '' : ` on ${run.mode}`}`;
+
 // --- Layout ---
 
 function measure() {
@@ -139,10 +161,10 @@ const beamRadius = () => {
   return game.scene.beam * view.s * size * (0.72 + 0.28 * fade);
 };
 
-function newRoom(index) {
-  hidden = new Set();
+function newRoom(index, progress = null) {
   measure();
-  game.startRoom(index, region);
+  game.startRoom(index, region, progress);
+  hidden = new Set(game.found);
   place();
   roomLight.level = 0;
   lctx.fillStyle = '#000';
@@ -304,6 +326,7 @@ function renderModes() {
   }
   $('modeNote').textContent = MODES[chosen].note;
   if (mode === 'title') $('sheetSmall').textContent = bestLine(readBest(chosen), chosen);
+  if (mode === 'title' && offered) $('sheetAlt').textContent = carryLabel(offered);
 }
 function choose(m) {
   chosen = m;
@@ -335,33 +358,53 @@ const lower = (name) => name.replace(/^The /, 'the ');
 
 // --- Starting and moving on ---
 
+let offered = null; // the saved run the title offers to carry on
 function showTitle() {
   game = new Game(fixedSeed ?? randomSeed());
   showHud(false);
   if (!wants.children.length) renderList(); // the list's three places, so the title's room is measured like the rest
   newRoom(startRoom);
   setMode('title');
+  offered = readRun();
+  const run = offered;
   showSheet({
     title: 'Pitch Dark',
     body: 'The power’s out. Find the things on the list by flashlight before the battery runs down. Spare batteries are hidden in the clutter.',
     button: 'Switch on the flashlight',
     small: bestLine(readBest(chosen), chosen),
     onGo: begin,
+    alt: run && { label: carryLabel(run), onGo: () => carryOn(run) },
     titleScreen: true,
   });
   renderModes();
 }
 
 function begin() {
-  game = new Game(fixedSeed ?? randomSeed(), chosen);
+  // A run left from before that isn't carried on still counts toward its best.
+  const left = readRun();
+  if (left && left.foundTotal > 0) saveBest(left.mode, left.foundTotal, false);
+  start(new Game(fixedSeed ?? randomSeed(), chosen), startRoom);
+}
+
+function carryOn(run) {
+  chosen = run.mode; // so Try again plays the same difficulty
+  hinted = true;
+  start(Game.resume(run), run.room, run);
+}
+
+function start(g, room, progress = null) {
+  game = g;
+  ended = null;
+  offered = null;
   showHud(true);
   hideSheet();
-  newRoom(startRoom);
+  newRoom(room, progress);
   showList(true);
   pointer.active = false;
   setMode('play');
   if (!hinted) showHint();
   sound.click();
+  saveRun();
 }
 
 function nextRoom() {
@@ -370,6 +413,7 @@ function nextRoom() {
   showList(true);
   pointer.active = pointer.active && !pointer.touch;
   setMode('play');
+  saveRun();
 }
 
 function showHint() {
@@ -392,8 +436,11 @@ function onEvent(ev) {
   if (ev.type === 'dying') {
     setMode('dying');
     sound.dying();
+    endRun(false);
     return;
   }
+  if (ev.type === 'won') endRun(true);
+  else saveRun();
   const item = game.scene.items[ev.id];
   hidden.add(ev.id);
   redraw();
@@ -470,7 +517,8 @@ addEventListener('keydown', (e) => {
 });
 addEventListener('keyup', (e) => keys.delete(e.key));
 addEventListener('blur', () => { keys.clear(); pointer.active = false; });
-document.addEventListener('visibilitychange', () => { if (document.hidden) { pointer.active = false; keys.clear(); } });
+document.addEventListener('visibilitychange', () => { if (document.hidden) { pointer.active = false; keys.clear(); saveRun(); } });
+addEventListener('pagehide', () => saveRun());
 
 $('soundBtn').addEventListener('click', () => {
   sound.wake();
@@ -565,7 +613,7 @@ function frame(ms) {
       game.die();
       setMode('dead');
       since = 0;
-      const { best, beat } = saveBest(game.modeName, game.foundTotal, false);
+      const { best, beat } = ended || endRun(false);
       setTimeout(() => {
         if (mode !== 'dead') return;
         showSheet({
@@ -604,7 +652,7 @@ function frame(ms) {
     roomLight.level = track(POWER_BACK, since);
     if (since > 0.5 && since - dt <= 0.5) sound.lightsOn();
     if (since > 1.4 && !sheetGo) {
-      const { best } = saveBest(game.modeName, game.foundTotal, true);
+      const { best } = ended || endRun(true);
       showSheet({
         kicker: `Room ${game.roomCount} of ${game.roomCount}`,
         title: 'The power’s back',

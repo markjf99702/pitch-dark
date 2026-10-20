@@ -173,6 +173,7 @@ assert.match(await text('#sheetBody'), /^You found 5 things in 2 rooms\./);
 assert.equal(await game(g => g.missed().length), 4);
 assert.match(await text('#sheetBody'), /Still on this room’s list, circled: (\S+ ){3}\S+$/u);
 assert.equal(await pd(() => JSON.parse(localStorage.getItem('pitch-dark:best')).found), 5);
+assert.equal(await pd(() => localStorage.getItem('pitch-dark:run')), null, 'a run that ended can still be carried on');
 
 // The card can cover some of the circled things, so a tap on the room fades it away to look around, and another tap
 // brings it back. Enter brings it back too, rather than starting again from behind it.
@@ -228,6 +229,7 @@ assert.ok((await timeIn('won')).untilCard > 1, 'the lights come back on before t
 assert.equal(await text('#sheetBody'), 'You found all 6 things with 56% battery left.');
 assert.equal(await text('#batteryPct'), '56%');
 assert.equal(await pd(() => JSON.parse(localStorage.getItem('pitch-dark:best')).wins), 1);
+assert.equal(await pd(() => localStorage.getItem('pitch-dark:run')), null, 'a run that was won can still be carried on');
 
 // Difficulty: picked on the title screen, remembered, and each has its own best.
 {
@@ -502,12 +504,68 @@ assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= i
     await page.waitForFunction(() => window.__pitchDark?.mode === 'title');
     assert.equal(await text('#sheetSmall'), shown, `the best stored as ${stored}`);
   }
+  await page.evaluate(() => localStorage.removeItem('pitch-dark:run')); // no run left from before to count toward it
   await page.click('#sheetBtn');
   await game(g => { g.charge = 0.003; });
   await page.mouse.move(150, 400);
   await page.mouse.move(170, 410, { steps: 3 });
   await page.waitForFunction(() => window.__pitchDark.mode === 'dead', null, { timeout: 6000 });
   assert.equal(await pd(() => localStorage.getItem('pitch-dark:best')), '{"found":0,"wins":0}');
+  await page.evaluate(() => localStorage.removeItem('pitch-dark:best'));
+}
+
+// A reload mid-run keeps the run. The title offers to carry on in the room it was in, with its list, what had been found,
+// the spares left and the battery as it was when the page went away, even on a screen of another shape. A run that isn't
+// carried on still counts toward the best, and one that ends counts at once, even if the page reloads as the light dies.
+{
+  const look = () => pd(() => {
+    const g = window.__pitchDark.game;
+    const name = id => g.scene.items[id].name;
+    return { mode: g.modeName, room: g.roomIndex, list: g.scene.list.map(name), found: g.scene.list.filter(id => g.found.has(id)).map(name), spares: g.scene.batteries.filter(id => !g.found.has(id)).length, foundTotal: g.foundTotal, charge: g.charge };
+  });
+  const reload = async () => {
+    await page.reload();
+    await page.waitForFunction(() => window.__pitchDark?.mode === 'title');
+  };
+  await page.goto(base + '?seed=22&room=1');
+  await page.click('#sheetBtn');
+  await pickUp((await game(g => g.shown()))[1]);
+  await game(g => { g.charge = 0.5; });
+  await pickUp(await game(g => g.scene.batteries[0]));
+  await page.dispatchEvent('#room', 'pointerleave', { pointerType: 'mouse' });
+  await game(g => { g.charge = 0.42; }); // the light was on a while after the last find
+  const before = await look();
+  await reload();
+  assert.equal(await text('#sheetAlt'), 'Carry on in the pantry');
+  await page.click('#sheetAlt');
+  assert.equal(await pd(() => window.__pitchDark.mode), 'play');
+  assert.deepEqual(await look(), before, 'the run carried on differently');
+  assert.equal(await text('#roomName'), 'The pantry');
+  assert.equal(await text('#spares'), 'No spares left');
+  assert.equal(await text('#batteryPct'), '42%');
+  assert.deepEqual(await page.locator('#wants .want .n').allInnerTexts(), (await look()).list.filter(n => !before.found.includes(n)).slice(0, 3));
+
+  await page.setViewportSize({ width: 844, height: 390 });
+  await reload();
+  await page.click('#sheetAlt');
+  assert.deepEqual(await look(), before, 'the run carried on differently on a phone on its side');
+  assert.ok(await pd(() => window.__pitchDark.view.s) > 0.95);
+  await page.setViewportSize({ width: 390, height: 844 });
+
+  await reload();
+  assert.equal(await pd(() => localStorage.getItem('pitch-dark:best')), null);
+  await page.click('#sheetBtn');
+  assert.equal(await pd(() => JSON.parse(localStorage.getItem('pitch-dark:best')).found), 1, 'a run left behind did not count toward the best');
+  assert.equal(await game(g => g.foundTotal), 0);
+
+  await pickUp((await game(g => g.shown()))[0]);
+  await pickUp((await game(g => g.shown()))[0]);
+  await game(g => { g.charge = 0.003; });
+  await page.mouse.move(150, 400, { steps: 2 });
+  await page.waitForFunction(() => window.__pitchDark.mode === 'dying', null, { timeout: 5000 });
+  await reload();
+  assert.ok(await page.locator('#sheetAlt').isHidden(), 'the title offers to carry on a run whose flashlight died');
+  assert.equal(await pd(() => JSON.parse(localStorage.getItem('pitch-dark:best')).found), 2, 'a reload as the light died lost the run');
   await page.evaluate(() => localStorage.removeItem('pitch-dark:best'));
 }
 

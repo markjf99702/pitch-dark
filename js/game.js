@@ -73,6 +73,24 @@ export class Game {
     return { list: sc.list.map((id) => sc.items[id].e), found: done(sc.list), spares: done(sc.batteries) };
   }
 
+  // The run so far as plain data, saved so a reload can carry on: in this room, or at the start of the next once this one
+  // is cleared. Null once the run is over.
+  snapshot() {
+    if (!this.scene || (this.state !== 'playing' && this.state !== 'cleared')) return null;
+    const run = { seed: this.seed, mode: this.modeName, room: this.roomIndex, firstRoom: this.firstRoom, charge: this.charge, foundTotal: this.foundTotal };
+    if (this.state === 'cleared') return { ...run, room: this.roomIndex + 1, list: [], found: [], spares: [] };
+    return { ...run, ...this.progress() };
+  }
+
+  // A saved run (checked by cleanRun) picked back up, ready for startRoom(run.room, region, run).
+  static resume(run) {
+    const game = new Game(run.seed, run.mode);
+    game.charge = run.charge;
+    game.foundTotal = run.foundTotal;
+    game.firstRoom = run.firstRoom;
+    return game;
+  }
+
   // Lays the room out again for a new part of the screen (the phone turned), keeping its list, what's been found and the
   // spares left. Things move, so they get new ids: returns a map from the old ids of the list things and spares to the new.
   relayout(region) {
@@ -170,4 +188,33 @@ export class Game {
   missed() {
     return this.scene.list.filter((id) => !this.found.has(id));
   }
+}
+
+// A saved run read back from storage, checked: a damaged or hand-edited one gives null, or the start of its room, never a
+// game that can't go on.
+export function cleanRun(data) {
+  if (!data || typeof data !== 'object') return null;
+  const whole = (v, lo, hi) => Number.isInteger(v) && v >= lo && v <= hi;
+  const { seed, mode, room, charge } = data;
+  if (!Number.isFinite(seed) || typeof mode !== 'string' || !Object.hasOwn(MODES, mode) || !whole(room, 0, ROOMS.length - 1)) return null;
+  if (!Number.isFinite(charge) || charge <= 0 || charge > 1) return null;
+  const all = DIFFICULTY.reduce((n, d) => n + d.targets, 0);
+  const run = {
+    seed: seed >>> 0, mode, room,
+    firstRoom: whole(data.firstRoom, 0, room) ? data.firstRoom : room,
+    charge,
+    foundTotal: whole(data.foundTotal, 0, all) ? data.foundTotal : 0,
+    list: [], found: [], spares: [],
+  };
+  // The room's list, if it's one this room could have; otherwise the room starts afresh.
+  const things = ROOMS[room].things.filter((t) => !(t[2] || '').includes('decor')).map((t) => t[0]);
+  const { list } = data;
+  if (!Array.isArray(list) || list.length !== DIFFICULTY[room].targets || new Set(list).size !== list.length || !list.every((e) => things.includes(e))) return run;
+  const places = (v, n) => (Array.isArray(v) ? [...new Set(v.filter((i) => whole(i, 0, n - 1)))] : []);
+  run.list = [...list];
+  run.found = places(data.found, list.length);
+  run.spares = places(data.spares, DIFFICULTY[room].batteries + MODES[mode].spares);
+  if (run.found.length < list.length) return run;
+  // Everything on the list was found: carry on at the start of the next room, if there is one.
+  return room + 1 < ROOMS.length ? { ...run, room: room + 1, list: [], found: [], spares: [] } : null;
 }

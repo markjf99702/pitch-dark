@@ -21,7 +21,7 @@
 - **Seven rooms, each harder than the last:** the hall closet, the pantry, the kids’ room, the bathroom, the garage, the study and the attic. Later rooms are more crowded and hide some list things at the back of a shelf. They also put look-alikes on the shelves, like the pen and the fountain pen in the study, or the violin and the guitar in the attic.
 - **Three difficulties, picked on the title screen.** Easy gives a wider beam, 130 seconds of light per battery, spares worth half a battery, one extra spare in every room and a shorter hold to pick things up. Medium gives 85 seconds, and spares add 40%. Hard narrows the beam, gives 60 seconds with spares worth 30%, and makes you hold the light longer to pick things up. Each difficulty keeps its own best score.
 - **Clearing a room brings a flash of lightning** that shows you the whole room at once. If the flashlight dies, the moonlight shows where the rest of the list was; tap the room to fade the card away and look, and tap again to bring it back. Get through the attic and the power comes back on.
-- No account and no server. Your best scores and the difficulty you picked stay in your browser. It works offline and installs to a phone’s home screen.
+- No account and no server. Your best scores, the difficulty you picked and the run you’re on stay in your browser, so if the page reloads mid-run, the title offers to carry on in the room you were in. It works offline and installs to a phone’s home screen.
 
 ## Running it
 
