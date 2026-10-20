@@ -290,6 +290,18 @@ test('a spare stays on the shelf until at least half of it would count', () => {
   }
 });
 
+test('the list counts what waits after the shown things, whatever spares were picked up', () => {
+  const g = new Game(12);
+  g.startRoom(5, SIZES[0]);
+  const waiting = DIFFICULTY[5].targets - LIST_SHOWN;
+  assert.equal(g.waiting(), waiting);
+  g.charge = 0.3;
+  g.collect(g.scene.batteries[0]);
+  assert.equal(g.waiting(), waiting, 'a spare picked up counts as a list thing found');
+  g.collect(g.shown()[0]);
+  assert.equal(g.waiting(), waiting - 1);
+});
+
 test('finding the whole list clears the room, and the last room wins', () => {
   const g = new Game(3);
   g.startRoom(0, SIZES[0]);

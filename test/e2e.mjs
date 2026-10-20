@@ -582,6 +582,7 @@ for (const [width, height] of [[568, 320], [640, 360], [844, 390]]) {
   assert.equal(await text('#spares'), 'No spares left');
   assert.equal(await text('#batteryPct'), '42%');
   assert.deepEqual(await page.locator('#wants .want .n').allInnerTexts(), (await look()).list.filter(n => !before.found.includes(n)).slice(0, 3));
+  assert.equal(await text('#more'), '1 more after these', 'the list counts the spare picked up as a list thing found');
 
   await page.setViewportSize({ width: 844, height: 390 });
   await reload();

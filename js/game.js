@@ -108,9 +108,9 @@ export class Game {
     return this.scene.list.filter((id) => !this.found.has(id)).slice(0, LIST_SHOWN);
   }
 
-  // How many list things are left after the shown ones.
+  // How many list things are left after the shown ones. Counted from the list, since found holds the spares picked up too.
   waiting() {
-    return Math.max(0, this.scene.list.length - this.found.size - this.shown().length);
+    return this.missed().length - this.shown().length;
   }
 
   // Things that can be picked up right now: shown list things that are on the page's list, and spare batteries once the
