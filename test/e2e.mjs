@@ -419,6 +419,21 @@ assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= i
   await sideways.close();
 }
 
+// On a phone on its side the list is the smaller one, each thing beside its name, however wide the phone is.
+{
+  const sizes = {};
+  for (const [width, height] of [[640, 360], [844, 390]]) {
+    const sideways = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+    const side = await sideways.newPage();
+    await side.goto(base + '?seed=4');
+    await side.waitForFunction(() => window.__pitchDark?.mode === 'title');
+    await side.click('#sheetBtn');
+    sizes[width] = await side.evaluate(() => [...document.querySelector('#wants .want:not(.empty)').children].map(e => getComputedStyle(e).fontSize).join(' '));
+    await sideways.close();
+  }
+  assert.equal(sizes[844], sizes[640], `the list is drawn at ${sizes[844]} on a phone on its side 844 px wide, ${sizes[640]} at 640 px`);
+}
+
 // On a big screen the room is laid out no bigger than a laptop's and drawn larger to fill the screen, so the beam lights as
 // much of it as on a phone, and the light still picks things up where they're drawn.
 {

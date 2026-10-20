@@ -339,13 +339,21 @@ button { font: inherit; color: inherit; }
   .battery .pct { min-width: 2.7em; }
 }
 
-/* A phone on its side: a shorter list, each thing beside its name. */
+@media (min-width: 700px) {
+  .where strong { font-size: 20px; }
+  .want .e { font-size: 34px; }
+  .want .n { font-size: 22px; }
+}
+
+/* A phone on its side: a shorter list, each thing beside its name. After the wider screens' sizes, so it keeps its
+   smaller list on a phone 700 px or more wide too. */
 @media (max-height: 500px) and (min-width: 560px) {
   .hud { padding-top: calc(6px + env(safe-area-inset-top)); padding-bottom: 6px; }
   .list { padding-top: 8px; padding-bottom: calc(8px + env(safe-area-inset-bottom)); }
   .list-head { margin-bottom: 4px; }
   .want { flex-direction: row; justify-content: center; gap: 8px; min-height: 0; padding: 6px 10px; }
   .want .e { font-size: 26px; }
+  .want .n { font-size: 20px; }
   .sheet { bottom: calc(10px + env(safe-area-inset-bottom)); padding: 14px 18px 12px; }
   .title { font-size: 24px; margin-bottom: 4px; }
   .body { margin-bottom: 10px; font-size: 15px; }
@@ -353,12 +361,6 @@ button { font: inherit; color: inherit; }
   .title-screen .title { font-size: 48px; }
   .mode-note { min-height: 0; margin-bottom: 10px; }
   .modes button { min-height: 34px; }
-}
-
-@media (min-width: 700px) {
-  .where strong { font-size: 20px; }
-  .want .e { font-size: 34px; }
-  .want .n { font-size: 22px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
