@@ -265,6 +265,7 @@ button { font: inherit; color: inherit; }
 .title-screen .title { font-size: clamp(48px, 15vw, 76px); letter-spacing: -0.03em; text-shadow: 0 0 40px rgba(255, 219, 143, 0.25); }
 .body { margin: 0 0 16px; font-size: 16px; line-height: 1.4; color: var(--ink); }
 .title-screen .body { color: var(--dim); font-size: 17px; margin-bottom: 14px; }
+.peek { margin: -8px 0 14px; font-size: 14px; color: var(--dim); }
 .small { margin: 12px 0 0; font-size: 13px; color: var(--dim); }
 .small:empty { display: none; }
 
@@ -348,6 +349,7 @@ button { font: inherit; color: inherit; }
   .sheet { bottom: calc(10px + env(safe-area-inset-bottom)); padding: 14px 18px 12px; }
   .title { font-size: 24px; margin-bottom: 4px; }
   .body { margin-bottom: 10px; font-size: 15px; }
+  .peek { margin: -4px 0 8px; }
   .title-screen .title { font-size: 48px; }
   .mode-note { min-height: 0; margin-bottom: 10px; }
   .modes button { min-height: 34px; }

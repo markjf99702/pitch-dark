@@ -174,6 +174,25 @@ assert.equal(await game(g => g.missed().length), 4);
 assert.match(await text('#sheetBody'), /Still on this room’s list, circled: (\S+ ){3}\S+$/u);
 assert.equal(await pd(() => JSON.parse(localStorage.getItem('pitch-dark:best')).found), 5);
 
+// The card can cover some of the circled things, so a tap on the room fades it away to look around, and another tap
+// brings it back. Enter brings it back too, rather than starting again from behind it.
+{
+  assert.equal(await text('#sheetPeek'), 'Tap the room to look around.');
+  const faded = (on, why) => page.waitForFunction(on => document.getElementById('sheet').classList.contains('hidden') === on, on, { timeout: 3000 }).catch(() => assert.fail(why));
+  const above = (await page.locator('#sheet').boundingBox()).y / 2;
+  await page.touchscreen.tap(195, above);
+  await faded(true, 'a tap on the room leaves the card up');
+  assert.ok(await pd(() => document.getElementById('sheet').inert), 'the faded card can still be tabbed to');
+  await page.touchscreen.tap(195, above);
+  await faded(false, 'a second tap leaves the card faded');
+  assert.equal(await pd(() => document.getElementById('sheet').inert), false);
+  await page.touchscreen.tap(195, above);
+  await faded(true, 'a third tap leaves the card up');
+  await page.keyboard.press('Enter');
+  await faded(false, 'Enter leaves the card faded');
+  assert.equal(await pd(() => window.__pitchDark.mode), 'dead', 'Enter started a new game from behind the faded card');
+}
+
 // Try again: back to the first room with a full battery.
 await page.click('#sheetBtn');
 assert.equal(await text('#roomName'), 'The hall closet');

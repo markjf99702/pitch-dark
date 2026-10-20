@@ -230,10 +230,12 @@ function fly(item, to) {
 
 // --- Messages ---
 
-function showSheet({ kicker = '', title, body, button, small = '', onGo, alt = null, titleScreen = false }) {
+function showSheet({ kicker = '', title, body, peek: peekLine = '', button, small = '', onGo, alt = null, titleScreen = false }) {
   $('sheetKicker').textContent = kicker;
   $('sheetTitle').textContent = title;
   $('sheetBody').textContent = body;
+  $('sheetPeek').textContent = peekLine;
+  $('sheetPeek').hidden = !peekLine;
   $('sheetBtn').textContent = button;
   $('sheetSmall').textContent = small;
   $('modes').hidden = !titleScreen;
@@ -243,6 +245,7 @@ function showSheet({ kicker = '', title, body, button, small = '', onGo, alt = n
   sheet.classList.toggle('title-screen', titleScreen);
   sheet.classList.remove('hidden');
   sheet.inert = false;
+  peeking = false;
   showList(false);
   sheetGo = onGo;
   sheetAlt = alt && alt.onGo;
@@ -252,8 +255,17 @@ let sheetAlt = null;
 function hideSheet() {
   sheet.classList.add('hidden');
   sheet.inert = true; // faded out, so no tabbing to its buttons
+  peeking = false;
   sheetGo = null;
   sheetAlt = null;
+}
+// After the flashlight dies, the card can cover some of the circled things, so a tap on the room fades it away to look
+// around, and another tap (or Enter) brings it back.
+let peeking = false;
+function peek(on) {
+  peeking = on;
+  sheet.classList.toggle('hidden', on);
+  sheet.inert = on;
 }
 $('sheetBtn').addEventListener('click', () => { sound.wake(); if (sheetGo) sheetGo(); });
 // Enter on a footer link should follow the link, not switch on the flashlight.
@@ -397,6 +409,7 @@ function aim(e) {
 canvas.addEventListener('pointerdown', (e) => {
   sound.wake();
   aim(e);
+  if (mode === 'dead' && sheetGo) { peek(!peeking); return; }
   if (mode !== 'play') return;
   if (pointer.touch) {
     beamPos.x = pointer.x;
@@ -424,7 +437,8 @@ addEventListener('keydown', (e) => {
   if ((e.key === 'Enter' || e.key === ' ') && sheetGo && document.activeElement?.tagName !== 'BUTTON') {
     e.preventDefault();
     sound.wake();
-    sheetGo();
+    if (peeking) peek(false); // the card comes back before anything starts
+    else sheetGo();
     return;
   }
   if (!e.key.startsWith('Arrow') || mode !== 'play') return;
@@ -536,6 +550,7 @@ function frame(ms) {
           kicker: 'The flashlight died',
           title: `Stuck in ${lower(game.room.name)}`,
           body: `You found ${game.foundTotal} ${game.foundTotal === 1 ? 'thing' : 'things'} in ${roomsWord(game.roomsVisited)}. Still on this room’s list, circled: ${game.missed().map((id) => game.scene.items[id].e).join(' ')}`,
+          peek: `${coarse ? 'Tap' : 'Click'} the room to look around.`,
           button: 'Try again',
           small: beat && best.found > 0 ? `That’s your best yet on ${game.mode.name.toLowerCase()}.` : bestLine(best, game.modeName),
           onGo: begin,
