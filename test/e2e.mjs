@@ -434,6 +434,29 @@ assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= i
   assert.equal(sizes[844], sizes[640], `the list is drawn at ${sizes[844]} on a phone on its side 844 px wide, ${sizes[640]} at 640 px`);
 }
 
+// The title card fits a phone on its side, down to 568x320, even with a run to carry on, a best and easy's longer note.
+for (const [width, height] of [[568, 320], [640, 360], [844, 390]]) {
+  const sideways = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+  const side = await sideways.newPage();
+  await side.addInitScript(() => {
+    localStorage.setItem('pitch-dark:mode', 'easy');
+    localStorage.setItem('pitch-dark:best:easy', '{"found":12,"wins":2}');
+    localStorage.setItem('pitch-dark:run', '{"seed":22,"mode":"hard","room":1,"firstRoom":0,"charge":0.4,"foundTotal":5}');
+  });
+  await side.goto(base + '?seed=5');
+  await side.waitForFunction(() => window.__pitchDark?.mode === 'title');
+  await side.evaluate(() => document.fonts.ready);
+  const card = await side.evaluate(() => {
+    const sheet = document.getElementById('sheet');
+    const b = sheet.getBoundingClientRect();
+    return { top: Math.round(b.top), bottom: Math.round(b.bottom), scrolls: sheet.scrollHeight > sheet.clientHeight + 1, alt: document.getElementById('sheetAlt').textContent, small: document.getElementById('sheetSmall').textContent };
+  });
+  assert.equal(card.alt, 'Carry on in the pantry on hard');
+  assert.ok(card.small, 'no best on the title');
+  assert.ok(card.top >= 0 && card.bottom <= height && !card.scrolls, `the title card runs off a ${width}x${height} screen: ${JSON.stringify(card)}`);
+  await sideways.close();
+}
+
 // On a big screen the room is laid out no bigger than a laptop's and drawn larger to fill the screen, so the beam lights as
 // much of it as on a phone, and the light still picks things up where they're drawn.
 {
