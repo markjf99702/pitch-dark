@@ -166,6 +166,25 @@ test('a spare battery tops the flashlight up, but not past full', () => {
   assert.equal(g.foundTotal, 0, 'batteries are not list things');
 });
 
+test('a spare stays on the shelf until at least half of it would count', () => {
+  for (const [name, { boost }] of Object.entries(MODES)) {
+    const g = new Game(12, name);
+    g.startRoom(0, SIZES[0]);
+    const id = g.scene.batteries[0];
+    for (const charge of [1, 1 - boost / 2 + 0.001]) {
+      g.charge = charge;
+      assert.notEqual(g.under(aimAt(g, id)), id, `${name}: the light finds a spare at ${charge}`);
+      assert.equal(g.collect(id), null, `${name}: a spare is spent at ${charge}`);
+      assert.equal(g.charge, charge);
+    }
+    assert.equal(g.scene.batteries.filter((b) => !g.found.has(b)).length, g.scene.batteries.length, 'the spares are all still there');
+    g.charge = 1 - boost / 2;
+    assert.equal(g.under(aimAt(g, id)), id);
+    assert.deepEqual(g.collect(id), { type: 'battery', id });
+    assert.ok(Math.abs(g.charge - 1) < 1e-9, `${name}: the spare didn't fill the battery`);
+  }
+});
+
 test('finding the whole list clears the room, and the last room wins', () => {
   const g = new Game(3);
   g.startRoom(0, SIZES[0]);

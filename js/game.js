@@ -69,10 +69,11 @@ export class Game {
     return Math.max(0, this.scene.list.length - this.found.size - this.shown().length);
   }
 
-  // Things that can be picked up right now: shown list things that are on the page's list, and spare batteries.
+  // Things that can be picked up right now: shown list things that are on the page's list, and spare batteries once the
+  // battery has room for at least half of one. Until then a spare stays on the shelf for later instead of going to waste.
   pickable() {
     const ids = this.shown().filter((id) => !this.listed || this.listed.has(id));
-    for (const id of this.scene.batteries) if (!this.found.has(id)) ids.push(id);
+    if (this.charge <= 1 - this.mode.boost / 2) for (const id of this.scene.batteries) if (!this.found.has(id)) ids.push(id);
     return ids;
   }
 
