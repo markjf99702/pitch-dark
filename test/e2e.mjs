@@ -399,6 +399,26 @@ assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= i
   assert.ok((await look()).s > 0.95);
   await pickUp((await game(g => g.shown()))[0]);
   assert.equal(await game(g => g.foundTotal), 3);
+  // A tablet turned upright, where the room would still be drawn at 0.75 of its size, and a window made wide again would
+  // leave the room in a strip of the screen, so it's laid out again then too: the window gets back the room it had.
+  const fills = () => pd(() => {
+    const { game: g, view: v } = window.__pitchDark;
+    const space = document.querySelector('.list-head').getBoundingClientRect().top - document.getElementById('hud').getBoundingClientRect().bottom;
+    return (g.scene.w * v.s * g.scene.h * v.s) / (innerWidth * space);
+  });
+  const where = () => game(g => g.scene.items.map(i => `${i.e}${Math.round(i.x)},${Math.round(i.bottom)}`).join(' '));
+  await page.dispatchEvent('#room', 'pointerleave', { pointerType: 'mouse' }); // the light off, so nothing's picked up meanwhile
+  for (const [width, height] of [[1024, 768], [768, 1024], [1280, 800]]) {
+    await turn(width, height);
+    const share = await fills();
+    assert.ok(share > 0.9, `at ${width}x${height} the room fills ${share.toFixed(2)} of the screen between the top bar and the list`);
+  }
+  const wide = await where();
+  await turn(700, 800);
+  await turn(1280, 800);
+  assert.ok(await fills() > 0.9, 'a window made narrow, then wide again, leaves the room in a strip');
+  assert.equal(await where(), wide, 'a window made narrow, then wide again, gets another room');
+  await turn(390, 844);
 }
 
 // On a phone on its side, the shelves keep clear of the notch, like the top bar and the list.

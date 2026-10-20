@@ -116,13 +116,16 @@ function measure() {
 }
 
 // Turning a phone mid-room leaves the room laid out for the other shape, and drawn to fit, it would shrink to under half
-// its size. Below this scale the room is laid out again for the new shape instead.
-const SHRUNK = 0.75;
+// its size. On a tablet turned upright, or a window made wide again, it would fill only a strip of the screen. Past either
+// of these the room is laid out again for the new shape instead.
+const SHRUNK = 0.75; // drawn at under this share of its size
+const STRIP = 0.6; // filling under this share of its part of the screen (a browser's bar coming and going stays above it)
 const fit = (sc) => Math.min(region.w / sc.w, region.h / sc.h);
+const fills = (sc) => (sc.w * sc.h * fit(sc) ** 2) / (region.w * region.h);
 
 function place() {
   const { W, H } = measure();
-  if (fit(game.scene) < SHRUNK) relayout();
+  if (fit(game.scene) < SHRUNK || fills(game.scene) < STRIP) relayout();
   const dpr = Math.min(2, devicePixelRatio || 1);
   const sc = game.scene;
   const s = fit(sc);
