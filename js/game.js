@@ -46,17 +46,43 @@ export class Game {
   get lastRoom() { return this.roomIndex === ROOMS.length - 1; }
   get totalTargets() { return DIFFICULTY.reduce((n, d) => n + d.targets, 0); }
 
-  startRoom(index, region) {
+  // Lays out a room for a part of the screen, from the seed. progress (from progress()) lays it out with the list it had,
+  // with what had been found still found and the spares picked up still gone.
+  startRoom(index, region, progress = null) {
     this.roomIndex = index;
     if (this.firstRoom == null) this.firstRoom = index;
+    const room = ROOMS[index];
     const rand = rng((this.seed ^ Math.imul(index + 1, 0x9e3779b1)) >>> 0);
     const diff = { ...DIFFICULTY[index], batteries: DIFFICULTY[index].batteries + this.mode.spares };
-    this.scene = buildScene(ROOMS[index], diff, region, rand);
-    this.found = new Set();
+    const list = progress && progress.list.length ? progress.list.map((e) => room.things.find((t) => t[0] === e)) : null;
+    const sc = buildScene(room, diff, region, rand, list);
+    this.scene = sc;
+    const found = list ? [...progress.found.map((i) => sc.list[i]), ...progress.spares.map((i) => sc.batteries[i])] : [];
+    this.found = new Set(found.filter((id) => id != null));
     this.aim = null;
     this.listed = null;
     this.state = 'playing';
-    return this.scene;
+    return sc;
+  }
+
+  // What's been done in this room, in terms that hold however it's laid out: its list (emoji, in order), which of the
+  // list have been found and which spares picked up (by their places in each).
+  progress() {
+    const sc = this.scene;
+    const done = (ids) => ids.flatMap((id, i) => (this.found.has(id) ? [i] : []));
+    return { list: sc.list.map((id) => sc.items[id].e), found: done(sc.list), spares: done(sc.batteries) };
+  }
+
+  // Lays the room out again for a new part of the screen (the phone turned), keeping its list, what's been found and the
+  // spares left. Things move, so they get new ids: returns a map from the old ids of the list things and spares to the new.
+  relayout(region) {
+    const before = this.scene;
+    const { state, listed } = this;
+    this.startRoom(this.roomIndex, region, this.progress());
+    this.state = state;
+    const map = new Map([...before.list.map((id, i) => [id, this.scene.list[i]]), ...before.batteries.map((id, i) => [id, this.scene.batteries[i]])]);
+    if (listed) this.listed = new Set([...listed].map((id) => (map.has(id) ? map.get(id) : id)));
+    return map;
   }
 
   // The list things you can see right now, in list order.

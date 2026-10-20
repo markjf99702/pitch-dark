@@ -95,6 +95,44 @@ test('a big screen is no harder to search than a phone', () => {
   }
 });
 
+test('a room laid out again for a turned phone keeps its list, its finds and its spares', () => {
+  const upright = { w: 390, h: 640 };
+  const sideways = { w: 800, h: 250 };
+  const emoji = (sc, ids) => ids.map((id) => sc.items[id].e);
+  const where = (sc) => sc.items.map((i) => [i.e, i.x, i.bottom, i.size]);
+  const g = new Game(5);
+  g.startRoom(2, upright);
+  const before = g.scene;
+  const thing = g.shown()[1];
+  g.collect(thing);
+  g.listed = new Set(g.shown());
+  g.charge = 0.3;
+  const spare = before.batteries[0];
+  g.collect(spare);
+  const shown = emoji(before, g.shown());
+  const { charge, foundTotal } = g;
+
+  const map = g.relayout(sideways);
+  const sc = g.scene;
+  assert.ok(Math.abs(sc.w / sc.h - sideways.w / sideways.h) < 1e-9, 'the room is not laid out for the new shape');
+  assert.deepEqual(emoji(sc, sc.list), emoji(before, before.list), 'the list changed');
+  assert.deepEqual(emoji(sc, g.shown()), shown, 'the list shows different things');
+  assert.deepEqual([...g.found].sort(), [map.get(thing), map.get(spare)].sort(), 'what was found is not what is found');
+  assert.equal(sc.items[map.get(thing)].e, before.items[thing].e);
+  assert.equal(sc.items[map.get(spare)].e, '🔋');
+  assert.deepEqual([...g.listed].sort(), g.shown().sort(), 'the page and the rules show different things');
+  assert.deepEqual([g.charge, g.foundTotal, g.state], [charge, foundTotal, 'playing']);
+  for (const id of sc.list) assert.equal(sc.items.filter((o) => o.e === sc.items[id].e).length, 1, `${sc.items[id].e} is on the shelves more than once`);
+
+  // Turned back, it's the room it was, with the same things found.
+  g.state = 'dead';
+  const back = g.relayout(upright);
+  assert.deepEqual(where(g.scene), where(before), 'turning back builds a different room');
+  assert.deepEqual([...g.found].sort(), [thing, spare].sort());
+  assert.equal(back.get(map.get(thing)), thing);
+  assert.equal(g.state, 'dead', 'laying out again brings the flashlight back');
+});
+
 test('the same seed builds the same house', () => {
   const a = new Game(42).startRoom(3, SIZES[0]);
   const b = new Game(42).startRoom(3, SIZES[0]);

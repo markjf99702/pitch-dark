@@ -93,11 +93,17 @@ function measure() {
   return { W, H };
 }
 
+// Turning a phone mid-room leaves the room laid out for the other shape, and drawn to fit, it would shrink to under half
+// its size. Below this scale the room is laid out again for the new shape instead.
+const SHRUNK = 0.75;
+const fit = (sc) => Math.min(region.w / sc.w, region.h / sc.h);
+
 function place() {
   const { W, H } = measure();
+  if (fit(game.scene) < SHRUNK) relayout();
   const dpr = Math.min(2, devicePixelRatio || 1);
   const sc = game.scene;
-  const s = Math.min(region.w / sc.w, region.h / sc.h);
+  const s = fit(sc);
   view = { W, H, dpr, s, ox: region.x + (region.w - sc.w * s) / 2, oy: region.y + (region.h - sc.h * s) / 2 };
   canvas.width = Math.round(W * dpr);
   canvas.height = Math.round(H * dpr);
@@ -106,6 +112,21 @@ function place() {
   lctx.fillStyle = '#000';
   lctx.fillRect(0, 0, light.width, light.height);
   redraw();
+}
+
+// Lays the room out again for the region just measured. Things move and get new ids, so the list's places follow them.
+// The title's room is only for show, so it's built fresh, as the room you'd play at this size.
+function relayout() {
+  if (mode === 'title') {
+    game.startRoom(game.roomIndex, region);
+    hidden = new Set();
+    return;
+  }
+  const map = game.relayout(region);
+  const moved = (id) => (map.has(id) ? map.get(id) : id);
+  hidden = new Set(game.found);
+  slots = slots.map((id) => (id == null ? null : moved(id)));
+  for (const li of wants.children) if (li.dataset.id) li.dataset.id = String(moved(Number(li.dataset.id)));
 }
 
 function redraw() { drawRoom(roomCanvas, game.scene, view, hidden); }
@@ -173,11 +194,12 @@ function crossOff(id) {
   if (!li) return;
   li.classList.add('got');
   const i = slots.indexOf(id);
+  // The place on the list, not the thing's id, which changes if the room is laid out again meanwhile.
   setTimeout(() => {
-    if (!game.scene.items[id] || game.state !== 'playing') return;
+    if (!li.isConnected || game.state !== 'playing') return;
     li.classList.add('leaving');
     setTimeout(() => {
-      if (game.state !== 'playing') return;
+      if (!li.isConnected || game.state !== 'playing') return;
       const shown = game.shown();
       const next = shown.find((x) => !slots.includes(x));
       slots[i] = next ?? null;

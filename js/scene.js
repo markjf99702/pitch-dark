@@ -8,7 +8,9 @@ const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 // region: { w, h } in CSS pixels, the part of the screen the room fills.
 // On a big screen the room is laid out in at most 775 x 775 px of area (where things stop growing) and the page draws it
 // larger to fill the screen, so the beam lights the same share of the room on a monitor as on a phone.
-export function buildScene(room, diff, region, rand) {
+// keep: the room's list things (from room.things), to lay a room out again with the list it had. The list is still drawn
+// from rand first, so a room given the list its seed would choose comes out the same as one that chose it.
+export function buildScene(room, diff, region, rand, keep = null) {
   const k = Math.min(1, 775 / Math.sqrt(region.w * region.h));
   const w = region.w * k;
   const h = region.h * k;
@@ -71,12 +73,13 @@ export function buildScene(room, diff, region, rand) {
 
   // Choose the list. Never two look-alikes on the same list.
   const candidates = rand.shuffle(room.things.filter((t) => !(t[2] || '').includes('decor')));
-  const targets = [];
+  const chosen = [];
   for (const t of candidates) {
-    if (targets.length >= diff.targets) break;
-    if (targets.some((o) => lookalikeOf(o[0]).includes(t[0]))) continue;
-    targets.push(t);
+    if (chosen.length >= diff.targets) break;
+    if (chosen.some((o) => lookalikeOf(o[0]).includes(t[0]))) continue;
+    chosen.push(t);
   }
+  const targets = keep || chosen;
   const targetEmoji = new Set(targets.map((t) => t[0]));
   const banned = new Set(targetEmoji);
   if (!diff.lookalikes) for (const t of targets) for (const l of lookalikeOf(t[0])) banned.add(l);

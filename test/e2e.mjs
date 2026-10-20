@@ -353,15 +353,51 @@ assert.equal(await pd(() => JSON.parse(localStorage.getItem('pitch-dark:best')).
 // Fits a phone: nothing scrolls sideways.
 assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, 'the page scrolls sideways on a phone');
 
-// A resize (turning the phone) keeps the room and the list.
-await page.goto(base + '?seed=13');
-await page.click('#sheetBtn');
-const listBefore = await game(g => g.shown());
-await page.setViewportSize({ width: 844, height: 390 });
-await page.waitForTimeout(300);
-assert.deepEqual(await game(g => g.shown()), listBefore);
-await pickUp(listBefore[0]);
-await page.setViewportSize({ width: 390, height: 844 });
+// Turning the phone mid-room lays the room out again for the new shape, as big as a room built that way, with the same
+// list, what's been found still found and the spares that are left. The list's places follow the things to where they are.
+{
+  await page.goto(base + '?seed=13');
+  await page.click('#sheetBtn');
+  const look = () => pd(() => {
+    const { game: g, view: v } = window.__pitchDark;
+    const name = id => g.scene.items[id].name;
+    return {
+      s: v.s,
+      list: g.scene.list.map(name),
+      found: g.scene.list.filter(id => g.found.has(id)).map(name),
+      spares: g.scene.batteries.filter(id => !g.found.has(id)).length,
+      shown: g.shown().map(name),
+      places: [...document.querySelectorAll('#wants .want')].map(li => (li.dataset.id ? name(+li.dataset.id) : null)),
+      foundTotal: g.foundTotal,
+    };
+  });
+  const turn = async (width, height) => {
+    await page.setViewportSize({ width, height });
+    await page.waitForFunction(w => window.__pitchDark.view.W === w, width, { timeout: 3000 });
+  };
+  // The list has caught up when its places show what the rules show (a found thing's place takes a moment to fill).
+  const listFilled = () => page.waitForFunction(() => {
+    const ids = list => JSON.stringify(list.sort((a, b) => a - b));
+    const places = [...document.querySelectorAll('#wants .want')].filter(li => li.dataset.id).map(li => +li.dataset.id);
+    return ids(places) === ids(window.__pitchDark.game.shown());
+  }, null, { timeout: 3000 });
+  await pickUp((await game(g => g.shown()))[0]);
+  await game(g => { g.charge = 0.5; });
+  await pickUp(await game(g => g.scene.batteries[0]));
+  await listFilled();
+  const before = await look();
+  await turn(844, 390);
+  const after = await look();
+  assert.ok(after.s > 0.95, `turning the phone shrinks the room to ${after.s.toFixed(2)} of its size`);
+  assert.deepEqual({ ...after, s: 1 }, { ...before, s: 1 }, 'turning the phone changes the list, what was found or the spares');
+  // Turned back halfway through crossing a thing off, the list still moves along, and the light finds things where they are.
+  await pickUp((await game(g => g.shown()))[0]);
+  await turn(390, 844);
+  await listFilled();
+  assert.ok((await look()).s > 0.95);
+  await pickUp((await game(g => g.shown()))[0]);
+  assert.equal(await game(g => g.foundTotal), 3);
+}
 
 // On a phone on its side, the shelves keep clear of the notch, like the top bar and the list.
 {
