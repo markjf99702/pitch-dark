@@ -49,6 +49,6 @@ To put it online with GitHub Pages: **Settings → Pages → Build and deploymen
 - `js/sound.js`: the switch, the pick-up chime, the thunder and the lights, all made with Web Audio.
 - `js/rng.js`: seeded random numbers, so a house can be rebuilt from its seed.
 - `fonts/`: Bricolage Grotesque and Caveat (SIL Open Font License), served from here so nothing loads from elsewhere.
-- `sw.js`: keeps a copy for playing offline.
+- `sw.js`: keeps a copy for playing offline. On a connection that isn't answering, a page opens from that copy after four seconds. `FILES` in it is a fingerprint of the files it keeps: change one and `npm test` says what to set it to, so a release never leaves the copy half old.
 - `carry.js`: the first time the game opens at this address, brings your best scores and settings over from the old one, junkdrawer.works/pitch-dark/.
 - `scripts/build.mjs`: bundles the game into one HTML file.
